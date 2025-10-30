@@ -1,0 +1,47 @@
+﻿<Window x:Class="iCombatStatsExporter.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:iCombatStatsExporter"
+        mc:Ignorable="d"
+        Title="iCombat Stats Exporter" Height="450" Width="400"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Button x:Name="LoadStatsButton" 
+                Grid.Row="0" 
+                Content="Pobierz Statystyki Ostatniego Meczu" 
+                FontSize="16" 
+                FontWeight="Bold" 
+                Margin="5,5,5,10"
+                Padding="10"
+                Click="LoadStatsButton_Click"/>
+
+        <DataGrid x:Name="StatsDataGrid"
+                  Grid.Row="1"
+                  Margin="5"
+                  IsReadOnly="True"
+                  AutoGenerateColumns="False"
+                  FontSize="14">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Gracz" Binding="{Binding Gracz}" Width="*"/>
+                <DataGridTextColumn Header="Zabójstwa" Binding="{Binding Zabojstwa}" Width="Auto"/>
+                <DataGridTextColumn Header="Śmierci" Binding="{Binding Smierci}" Width="Auto"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <TextBlock x:Name="StatusTextBlock"
+                   Grid.Row="2"
+                   Text="Wciśnij przycisk, aby rozpocząć..."
+                   Margin="5"
+                   FontSize="12"
+                   Opacity="0.7"/>
+    </Grid>
+</Window>
