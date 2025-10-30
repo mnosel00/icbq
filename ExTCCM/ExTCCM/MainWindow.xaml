@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:iCombatStatsExporter"
         mc:Ignorable="d"
-        Title="iCombat Stats Exporter" Height="450" Width="400"
+        Title="iCombat Stats Exporter" Height="500" Width="700"
         WindowStartupLocation="CenterScreen">
 
     <Grid Margin="10">
@@ -24,18 +24,45 @@
                 Padding="10"
                 Click="LoadStatsButton_Click"/>
 
-        <DataGrid x:Name="StatsDataGrid"
-                  Grid.Row="1"
-                  Margin="5"
-                  IsReadOnly="True"
-                  AutoGenerateColumns="False"
-                  FontSize="14">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Gracz" Binding="{Binding Gracz}" Width="*"/>
-                <DataGridTextColumn Header="Zabójstwa" Binding="{Binding Zabojstwa}" Width="Auto"/>
-                <DataGridTextColumn Header="Śmierci" Binding="{Binding Smierci}" Width="Auto"/>
-            </DataGrid.Columns>
-        </DataGrid>
+        <Grid Grid.Row="1" Margin="5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0" Margin="0,0,5,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock x:Name="TeamAName" Grid.Row="0" Text="Drużyna A" FontSize="16" FontWeight="Bold" Margin="5"/>
+                <DataGrid x:Name="TeamAGrid" Grid.Row="1"
+                          IsReadOnly="True" AutoGenerateColumns="False" FontSize="14">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Gracz" Binding="{Binding Gracz}" Width="*"/>
+                        <DataGridTextColumn Header="Zabójstwa" Binding="{Binding Zabojstwa}" Width="Auto"/>
+                        <DataGridTextColumn Header="Śmierci" Binding="{Binding Smierci}" Width="Auto"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+
+            <Grid Grid.Column="1" Margin="5,0,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock x:Name="TeamBName" Grid.Row="0" Text="Drużyna B" FontSize="16" FontWeight="Bold" Margin="5"/>
+                <DataGrid x:Name="TeamBGrid" Grid.Row="1"
+                          IsReadOnly="True" AutoGenerateColumns="False" FontSize="14">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Gracz" Binding="{Binding Gracz}" Width="*"/>
+                        <DataGridTextColumn Header="Zabójstwa" Binding="{Binding Zabojstwa}" Width="Auto"/>
+                        <DataGridTextColumn Header="Śmierci" Binding="{Binding Smierci}" Width="Auto"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+
+        </Grid>
 
         <TextBlock x:Name="StatusTextBlock"
                    Grid.Row="2"
