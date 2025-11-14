@@ -52,7 +52,10 @@
 
                     <TextBlock Grid.Row="0" Text="Wybierz mecz z listy:" FontWeight="Bold" Margin="0,0,0,5"/>
 
-                    <ListBox x:Name="MatchesListBox" Grid.Row="1" SelectionChanged="MatchesListBox_SelectionChanged" IsEnabled="False">
+                    <ListBox x:Name="MatchesListBox" 
+                             Grid.Row="1" 
+                             SelectionChanged="MatchesListBox_SelectionChanged"
+                             IsEnabled="False">
 
                         <ListBox.ItemTemplate>
                             <DataTemplate>
@@ -66,7 +69,7 @@
 
                                         <CheckBox x:Name="MatchSelectorCheckBox"
                                                   Grid.Column="0"
-                                                  IsChecked="{Binding IsSelectedForSummary}"
+                                                  IsChecked="{Binding IsSelectedForSummary, Mode=TwoWay}"
                                                   Click="MatchSelectorCheckBox_Click"
                                                   VerticalAlignment="Center"/>
 
@@ -133,13 +136,11 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0" Grid.ColumnSpan="2" HorizontalAlignment="Center" Margin="0,0,0,10">
-
                     <TextBlock x:Name="SummaryLine1TextBlock"
                                Text="Wybierz mecz z listy"
                                FontSize="18"
                                FontWeight="Bold"
                                HorizontalAlignment="Center"/>
-
                     <TextBlock x:Name="SummaryLine2TextBlock"
                                Text="" 
                                FontSize="14"
@@ -164,7 +165,7 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <TextBlock x:Name="TeamAName" Grid.Row="0" Text="Drużyna A" FontSize="16" FontWeight="Bold" Margin="5"/>
-                        <DataGrid x:Name="TeamAGrid" Grid.Row="1" IsReadOnly="True" AutoGenerateColumns="False" FontSize="14">
+                        <DataGrid x:Name="TeamAGrid" Grid.Row="1" IsReadOnly="True" AutoGenerateColumns="False" FontSize="14" HeadersVisibility="Column">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Gracz" Binding="{Binding Gracz}" Width="*"/>
                                 <DataGridTextColumn Header="Trafienia" Binding="{Binding Zabojstwa}" Width="Auto"/>
@@ -180,7 +181,7 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <TextBlock x:Name="TeamBName" Grid.Row="0" Text="Drużyna B" FontSize="16" FontWeight="Bold" Margin="5"/>
-                        <DataGrid x:Name="TeamBGrid" Grid.Row="1" IsReadOnly="True" AutoGenerateColumns="False" FontSize="14">
+                        <DataGrid x:Name="TeamBGrid" Grid.Row="1" IsReadOnly="True" AutoGenerateColumns="False" FontSize="14" HeadersVisibility="Column">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Gracz" Binding="{Binding Gracz}" Width="*"/>
                                 <DataGridTextColumn Header="Trafienia" Binding="{Binding Zabojstwa}" Width="Auto"/>

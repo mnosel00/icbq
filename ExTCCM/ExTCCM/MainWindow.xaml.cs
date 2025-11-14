@@ -13,6 +13,8 @@ using System.Windows;
 using System.Windows.Controls;
 using static iCombatStatsExporter.MainWindow;
 
+// Usunęliśmy 'using' dla NetOffice i Interop
+
 namespace iCombatStatsExporter
 {
     public partial class MainWindow : Window
@@ -30,18 +32,27 @@ namespace iCombatStatsExporter
         private List<MatchInfo> _loadedMatches = new List<MatchInfo>();
         private string _lastGeneratedPdfPath = string.Empty;
 
-        public MainWindow()
-        {
-            InitializeComponent();
-            Directory.CreateDirectory(WorkDbPath);
-            QuestPDF.Settings.License = LicenseType.Community;
-        }
-
         // --- 3. MODELE DANYCH (ZAKTUALIZOWANE) ---
-        public class PlayerStats
+
+        // Przechowuje surowy log trafień pobrany z bazy
+        public class RawKillEvent
         {
             public string MatchId { get; set; }
             public string MatchName { get; set; }
+            public DateTime MatchTime { get; set; }
+            public string ShooterId { get; set; }
+            public string ShooterName { get; set; }
+            public string ShooterTeam { get; set; }
+            public string VictimId { get; set; }
+            public string VictimName { get; set; }
+            public string VictimTeam { get; set; }
+        }
+
+        // Przechowuje podsumowane statystyki dla JEDNEGO gracza w JEDNYM meczu
+        public class PlayerStats
+        {
+            public string MatchId { get; set; }
+            public string MatchName { get; set; } // <-- DODAJ TĘ LINIĘ
             public DateTime MatchTime { get; set; }
             public string Gracz { get; set; }
             public string Drużyna { get; set; }
@@ -58,23 +69,31 @@ namespace iCombatStatsExporter
             }
         }
 
-        // ZAKTUALIZOWANA KLASA MatchInfo
+        // Przechowuje informacje o JEDNYM meczu (dla listy po lewej)
         public class MatchInfo
         {
             public string MatchId { get; set; }
-            public string MatchName { get; set; }
-            public string OriginalMatchName { get; set; }
+            public string MatchName { get; set; } // "Mecz 5" lub "Mecz na Cele 5"
+            public string OriginalMatchName { get; set; } // "Custom Time Limit"
             public DateTime MatchTime { get; set; }
-            public string MatchResult { get; set; }
+            public string MatchResult { get; set; } // "Alpha Wygrała (10-5)"
 
-            // NOWE WŁAŚCIWOŚCI DO KONTROLOWANIA SUMY
-            public bool IsSelectedForSummary { get; set; } = true; // Domyślnie zaznaczone
-            public bool IncludePersonalStats { get; set; } = true; // Domyślnie wliczaj staty
+            // Właściwości dla CheckBoxa i logiki sumowania
+            public bool IsSelectedForSummary { get; set; } = true;
+            public bool IncludePersonalStats { get; set; } = true;
+        }
+
+
+        public MainWindow()
+        {
+            InitializeComponent();
+            Directory.CreateDirectory(WorkDbPath);
+            QuestPDF.Settings.License = LicenseType.Community;
         }
 
         // --- 4. LOGIKA PRZYCISKÓW ---
 
-        // Przycisk "POBIERZ" (Bez zmian)
+        // Przycisk "POBIERZ" (ZAKTUALIZOWANY)
         private async void LoadStatsButton_Click(object sender, RoutedEventArgs e)
         {
             SetUiEnabled(false, "Rozpoczynanie...");
@@ -96,61 +115,23 @@ namespace iCombatStatsExporter
                     return;
                 }
 
-                _allPlayerStats = await LoadStatsAsync(roundsToFetch);
+                // Krok 1: Pobierz SUROWY log trafień (nowa funkcja LoadStatsAsync)
+                SetStatus("Krok 2/4: Pobieranie surowych danych...");
+                var rawKills = await LoadStatsAsync(roundsToFetch);
 
-                var matchesFromStats = _allPlayerStats
-                    .GroupBy(s => new { s.MatchId, s.MatchName, s.MatchTime })
-                    .OrderByDescending(g => g.Key.MatchTime)
-                    .ToList();
+                // Krok 2: Przetwórz surowe dane (nowa funkcja ProcessRawData)
+                SetStatus("Krok 3/4: Analizowanie meczy...");
+                var processedData = ProcessRawData(rawKills);
 
-                int totalMatches = matchesFromStats.Count;
+                _loadedMatches = processedData.Matches;
+                _allPlayerStats = processedData.PlayerStats;
 
-                _loadedMatches = matchesFromStats
-                    .Select((matchGroup, index) => {
-                        var statsForThisMatch = matchGroup.ToList();
-                        var teamScores = statsForThisMatch
-                            .GroupBy(s => s.Drużyna)
-                            .Select(g => new {
-                                TeamName = g.Key,
-                                TotalKills = g.Sum(s => s.Zabojstwa)
-                            })
-                            .OrderByDescending(s => s.TotalKills)
-                            .ToList();
-
-                        string matchResultString = "Remis (0-0)";
-                        if (teamScores.Count > 0)
-                        {
-                            var teamA = teamScores[0];
-                            var teamB = (teamScores.Count > 1) ? teamScores[1] : new { TeamName = "Brak", TotalKills = 0 };
-
-                            if (teamA.TotalKills > teamB.TotalKills)
-                                matchResultString = $"{teamA.TeamName} Wygrała ({teamA.TotalKills}-{teamB.TotalKills})";
-                            else if (teamB.TotalKills > teamA.TotalKills)
-                                matchResultString = $"{teamB.TeamName} Wygrała ({teamB.TotalKills}-{teamA.TotalKills})";
-                            else
-                                matchResultString = $"Remis ({teamA.TotalKills}-{teamB.TotalKills})";
-                        }
-
-                        int matchNumber = totalMatches - index;
-                        string dynamicName = $"Mecz {matchNumber}";
-
-                        return new MatchInfo
-                        {
-                            MatchId = matchGroup.Key.MatchId,
-                            MatchName = dynamicName,
-                            OriginalMatchName = matchGroup.Key.MatchName,
-                            MatchTime = matchGroup.Key.MatchTime,
-                            MatchResult = matchResultString
-                            // IsSelectedForSummary i IncludePersonalStats są domyślnie 'true'
-                        };
-                    })
-                    .ToList();
-
+                // Krok 3: Wyświetl listę meczy
                 MatchesListBox.ItemsSource = _loadedMatches;
 
                 if (_loadedMatches.Count > 0)
                 {
-                    MatchesListBox.SelectedIndex = 0;
+                    MatchesListBox.SelectedIndex = 0; // To automatycznie wywoła MatchesListBox_SelectionChanged
                 }
 
                 SetStatus($"Gotowe! Pomyślnie załadowano {_loadedMatches.Count} meczy.");
@@ -169,43 +150,35 @@ namespace iCombatStatsExporter
             }
         }
 
-        // ========================================================
-        // ====== NOWA FUNKCJA: Obsługa CheckBoxa ======
-        // ========================================================
+        // NOWA FUNKCJA: Obsługa CheckBoxa
         private void MatchSelectorCheckBox_Click(object sender, RoutedEventArgs e)
         {
-            // Pobierz CheckBox, który został kliknięty
             if (sender is not CheckBox checkBox) return;
-
-            // Znajdź obiekt MatchInfo powiązany z tym CheckBoxem
             if (checkBox.DataContext is not MatchInfo selectedMatch) return;
 
-            // Logika uruchamia się TYLKO, gdy ODZNACZAMY checkbox
+            // Logika uruchamia się TYLKO, gdy ODZNACZAMY
             if (checkBox.IsChecked == false)
             {
-                // Wyświetl okno dialogowe z pytaniem
                 MessageBoxResult result = MessageBox.Show(
                     $"Czy statystyki osobiste (Trafienia/Śmierci) z meczu '{selectedMatch.MatchName}' mają być wliczone do ogólnej sumy?",
                     "Wybierz opcję",
-                    MessageBoxButton.YesNoCancel, // Daje Tak, Nie, Anuluj
+                    MessageBoxButton.YesNoCancel,
                     MessageBoxImage.Question
                 );
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    // "Tak" - wliczaj statystyki osobiste, ale nie wynik drużynowy
-                    selectedMatch.IsSelectedForSummary = false; // Pozostaw odznaczone
+                    selectedMatch.IsSelectedForSummary = false;
                     selectedMatch.IncludePersonalStats = true;
                 }
                 else if (result == MessageBoxResult.No)
                 {
-                    // "Nie" - nie wliczaj ani statystyk osobistych, ani drużynowych
-                    selectedMatch.IsSelectedForSummary = false; // Pozostaw odznaczone
+                    selectedMatch.IsSelectedForSummary = false;
                     selectedMatch.IncludePersonalStats = false;
                 }
                 else if (result == MessageBoxResult.Cancel)
                 {
-                    // "Anuluj" - przywróć CheckBox do stanu zaznaczonego
+                    // Anuluj odznaczenie
                     checkBox.IsChecked = true;
                     selectedMatch.IsSelectedForSummary = true;
                     selectedMatch.IncludePersonalStats = true;
@@ -213,31 +186,25 @@ namespace iCombatStatsExporter
             }
             else
             {
-                // Jeśli ZAZNACZAMY z powrotem, po prostu zresetuj wszystko do 'true'
+                // Zaznaczanie z powrotem
                 selectedMatch.IsSelectedForSummary = true;
                 selectedMatch.IncludePersonalStats = true;
             }
         }
 
-        // ========================================================
-        // ====== ZAKTUALIZOWANA FUNKCJA: Przycisk "SUMUJ WSZYSTKO" ======
-        // ========================================================
+        // ZAKTUALIZOWANA FUNKCJA: Przycisk "SUMUJ WSZYSTKO"
         private void SumAllButton_Click(object sender, RoutedEventArgs e)
         {
             if (_allPlayerStats == null || _allPlayerStats.Count == 0) return;
 
             SetStatus("Sumowanie statystyk ze wszystkich pobranych meczy...");
 
-            // === POCZĄTEK ZMIAN ===
-
-            // Krok 1: Filtruj mecze, które wliczamy do WYNIKÓW DRUŻYNOWYCH
-            // Bierzemy tylko te, które mają zaznaczony CheckBox
+            // Krok 1: Filtruj mecze do WYNIKÓW DRUŻYNOWYCH
             var matchesForTeamSummary = _loadedMatches
                 .Where(m => m.IsSelectedForSummary)
                 .ToList();
 
-            // Krok 2: Filtruj mecze, które wliczamy do STATYSTYK OSOBISTYCH
-            // Bierzemy te zaznaczone LUB te odznaczone z opcją "Tak"
+            // Krok 2: Filtruj ID meczy do STATYSTYK OSOBISTYCH
             var matchIdsForPersonalStats = _loadedMatches
                 .Where(m => m.IsSelectedForSummary || m.IncludePersonalStats)
                 .Select(m => m.MatchId)
@@ -248,17 +215,15 @@ namespace iCombatStatsExporter
                 .Where(stat => matchIdsForPersonalStats.Contains(stat.MatchId))
                 .ToList();
 
-            // === KONIEC FILTROWANIA ===
+            // Krok 3: Oblicz zsumowane statystyki osobiste
+            var summedStats = GetSummedStats(personalStatsToSum);
 
-            // Krok 3: Oblicz statystyki osobiste (używając przefiltrowanej listy)
-            var summedStats = GetSummedStats(personalStatsToSum); // Przekaż przefiltrowaną listę
-
-            // Krok 4: Znajdź nazwy drużyn (używając pełnej listy, na wszelki wypadek)
+            // Krok 4: Znajdź nazwy drużyn
             var teamNames = _allPlayerStats.Select(s => s.Drużyna).Distinct().ToList();
-            string teamAName = (teamNames.Count > 0) ? teamNames[0] : "Drużyna A";
-            string teamBName = (teamNames.Count > 1) ? teamNames[1] : "Drużyna B";
+            string teamAName = teamNames.FirstOrDefault(n => n != "Brak Drużyny") ?? "Drużyna A";
+            string teamBName = teamNames.FirstOrDefault(n => n != "Brak Drużyny" && n != teamAName) ?? "Drużyna B";
 
-            // Krok 5: Oblicz sumy trafień (używając zsumowanych statystyk osobistych)
+            // Krok 5: Oblicz sumy trafień (z już przefiltrowanej i zsumowanej listy)
             int teamAKills = summedStats.Where(s => s.Drużyna == teamAName).Sum(s => s.Zabojstwa);
             int teamBKills = summedStats.Where(s => s.Drużyna == teamBName).Sum(s => s.Zabojstwa);
 
@@ -267,39 +232,48 @@ namespace iCombatStatsExporter
             int teamBWins = matchesForTeamSummary.Count(m => m.MatchResult.StartsWith(teamBName));
             int draws = matchesForTeamSummary.Count(m => m.MatchResult.StartsWith("Remis"));
 
-            // Krok 7: Zbuduj nagłówki (bez zmian)
+            // Krok 7: Zbuduj nagłówki
             string line1 = $"Suma: {teamAName} ({teamAWins} wygranych) vs {teamBName} ({teamBWins} wygranych)";
             string line2 = $"(Remisy: {draws})";
             string line3 = $"Całkowite trafienia: {teamAKills} - {teamBKills}";
 
             SummaryLine1TextBlock.Text = line1;
             SummaryLine1TextBlock.Visibility = Visibility.Visible;
-
             SummaryLine2TextBlock.Text = line2;
             SummaryLine2TextBlock.Visibility = (draws > 0) ? Visibility.Visible : Visibility.Collapsed;
-
             SummaryLine3TextBlock.Text = line3;
             SummaryLine3TextBlock.Visibility = Visibility.Visible;
 
-            DisplayStatsInGrids(summedStats, $"Suma - {teamAName}", $"Suma - {teamBName}");
+            // Krok 8: Wyświetl tabele, UKRYWAJĄC BAZY
+            DisplayStatsInGrids(summedStats, $"Suma - {teamAName}", $"Suma - {teamBName}", excludeBases: true);
             MatchesListBox.SelectedIndex = -1;
         }
 
-        // Akcja Wyboru Meczu (Bez zmian)
+        // ZAKTUALIZOWANA FUNKCJA: Akcja Wyboru Meczu
         private void MatchesListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (MatchesListBox.SelectedItem == null) return;
+
             var selectedMatch = (MatchInfo)MatchesListBox.SelectedItem;
-            var filteredStats = _allPlayerStats.Where(s => s.MatchId == selectedMatch.MatchId).ToList();
+
+            // Filtruj statystyki tylko dla tego meczu
+            var filteredStats = _allPlayerStats
+                .Where(s => s.MatchId == selectedMatch.MatchId)
+                .ToList();
+
             SetStatus($"Wyświetlanie statystyk dla: {selectedMatch.OriginalMatchName} ({selectedMatch.MatchName})");
+
+            // Ustaw nagłówek
             SummaryLine1TextBlock.Text = selectedMatch.MatchResult;
             SummaryLine1TextBlock.Visibility = Visibility.Visible;
             SummaryLine2TextBlock.Visibility = Visibility.Collapsed;
             SummaryLine3TextBlock.Visibility = Visibility.Collapsed;
-            DisplayStatsInGrids(filteredStats);
+
+            // Wyświetl tabele, POKAZUJĄC BAZY
+            DisplayStatsInGrids(filteredStats, null, null, excludeBases: false);
         }
 
-        // Przycisk "GENERUJ PDF"
+        // ZAKTUALIZOWANA FUNKCJA: Przycisk "GENERUJ PDF"
         private void GeneratePdfButton_Click(object sender, RoutedEventArgs e)
         {
             if (_allPlayerStats == null || _allPlayerStats.Count == 0)
@@ -325,14 +299,9 @@ namespace iCombatStatsExporter
                 {
                     SetStatus("Tworzenie dokumentu PDF...");
 
-                    // ===========================================
-                    // ====== ZMIANA DLA PDF ======
                     // Musimy także przefiltrować dane wysyłane do PDF
-
-                    // 1. Filtruj mecze do podsumowania drużynowego
                     var matchesForTeamSummary = _loadedMatches.Where(m => m.IsSelectedForSummary).ToList();
 
-                    // 2. Filtruj statystyki osobiste
                     var matchIdsForPersonalStats = _loadedMatches
                         .Where(m => m.IsSelectedForSummary || m.IncludePersonalStats)
                         .Select(m => m.MatchId)
@@ -342,12 +311,10 @@ namespace iCombatStatsExporter
                         .Where(stat => matchIdsForPersonalStats.Contains(stat.MatchId))
                         .ToList();
 
-                    // 3. Oblicz zsumowane statystyki osobiste
                     var summedStats = GetSummedStats(personalStatsToSum);
 
-                    // 4. Utwórz PDF z przefiltrowanymi danymi
-                    var pdfDocument = new PdfReportDocument(matchesForTeamSummary, personalStatsToSum, summedStats);
-                    // ===========================================
+                    // Utwórz PDF z przefiltrowanymi danymi
+                    var pdfDocument = new PdfReportDocument(_loadedMatches, _allPlayerStats, summedStats);
 
                     pdfDocument.GeneratePdf(filePath);
 
@@ -416,8 +383,10 @@ namespace iCombatStatsExporter
         }
 
 
-        // --- 5. GŁÓWNA FUNKCJA POBIERANIA DANYCH (Bez zmian) ---
-        private async Task<List<PlayerStats>> LoadStatsAsync(int roundsToFetch)
+        // --- 5. NOWE GŁÓWNE FUNKCJE LOGIKI ---
+
+        // ZAKTUALIZOWANA: Pobiera teraz SUROWY log trafień
+        private async Task<List<RawKillEvent>> LoadStatsAsync(int roundsToFetch)
         {
             SetStatus("Krok 1/4: Kopiowanie plików bazy danych...");
             await Task.Run(() =>
@@ -427,44 +396,57 @@ namespace iCombatStatsExporter
             });
 
             SetStatus("Krok 2/4: Łączenie z bazą danych...");
-            var statsList = new List<PlayerStats>();
+            var rawKillsList = new List<RawKillEvent>();
             string tempDbName = $"iCombatStatsCopy_{Guid.NewGuid():N}";
             string workDbFilePath = Path.Combine(WorkDbPath, WorkDbFile);
             string connectionString = $"Server={ServerName};Database={tempDbName};Integrated Security=True;AttachDbFileName='{workDbFilePath}';";
 
+            // NOWE ZAPYTANIE: Pobiera log trafień, a nie podsumowanie
             string sqlQuery = @"
                 DECLARE @RoundsToFetch INT = @FetchCount;
+
                 WITH LatestMatches AS (
-                    SELECT TOP (@RoundsToFetch) Id, Name, Created FROM dbo.Matches ORDER BY Created DESC
-                ), AllPlayerIDs AS (
-                    SELECT DISTINCT ev.MatchHostDeviceId AS PlayerId, ev.MatchId FROM dbo.MatchEvents AS ev JOIN LatestMatches AS lm ON ev.MatchId = lm.Id WHERE ev.MatchHostDeviceId IS NOT NULL
-                    UNION
-                    SELECT DISTINCT ev.ShooterMatchHostDeviceId1 AS PlayerId, ev.MatchId FROM dbo.MatchEvents AS ev JOIN LatestMatches AS lm ON ev.MatchId = lm.Id WHERE ev.ShooterMatchHostDeviceId1 IS NOT NULL
-                ), PlayersInMatch AS (
-                    SELECT p.Id AS PlayerId, p.PlayerName, t.Name AS TeamName, ap.MatchId FROM AllPlayerIDs AS ap
-                    JOIN dbo.MatchHostDevices AS p ON ap.PlayerId = p.Id
-                    LEFT JOIN dbo.MatchTeamRoles AS r ON p.MatchTeamRoleId = r.Id
-                    LEFT JOIN dbo.MatchTeams AS t ON r.MatchTeamId = t.Id
-                ), Kills AS (
-                    SELECT ShooterMatchHostDeviceId1 AS PlayerId, MatchId, COUNT(*) AS TotalKills FROM dbo.MatchEvents
-                    WHERE MatchId IN (SELECT Id FROM LatestMatches) AND Discriminator = 'MatchEventKilled' GROUP BY ShooterMatchHostDeviceId1, MatchId
-                ), Deaths AS (
-                    SELECT MatchHostDeviceId AS PlayerId, MatchId, COUNT(*) AS TotalDeaths FROM dbo.MatchEvents
-                    WHERE MatchId IN (SELECT Id FROM LatestMatches) AND Discriminator = 'MatchEventKilled' GROUP BY MatchHostDeviceId, MatchId
+                    SELECT TOP (@RoundsToFetch) Id, Name, Created
+                    FROM dbo.Matches
+                    ORDER BY Created DESC
                 )
-                SELECT P.PlayerName AS 'Gracz', ISNULL(P.TeamName, 'Brak Drużyny') AS 'Drużyna',
-                    ISNULL(K.TotalKills, 0) AS 'Zabojstwa', ISNULL(D.TotalDeaths, 0) AS 'Smierci',
-                    P.MatchId, m.Name AS 'MatchName', m.Created AS 'MatchTime'
-                FROM PlayersInMatch AS P
-                JOIN LatestMatches AS m ON P.MatchId = m.Id
-                LEFT JOIN Kills AS K ON P.PlayerId = K.PlayerId AND P.MatchId = K.MatchId
-                LEFT JOIN Deaths AS D ON P.PlayerId = D.PlayerId AND P.MatchId = D.MatchId;
+                SELECT
+                    m.Id AS 'MatchId',
+                    m.Name AS 'MatchName',
+                    m.Created AS 'MatchTime',
+                    
+                    shooter.Id AS 'ShooterId',
+                    shooter.PlayerName AS 'ShooterName',
+                    shooter_team.Name AS 'ShooterTeam',
+                    
+                    victim.Id AS 'VictimId',
+                    victim.PlayerName AS 'VictimName',
+                    victim_team.Name AS 'VictimTeam'
+                    
+                FROM 
+                    dbo.MatchEvents AS ev
+                JOIN 
+                    LatestMatches AS m ON ev.MatchId = m.Id
+                LEFT JOIN 
+                    dbo.MatchHostDevices AS shooter ON ev.ShooterMatchHostDeviceId1 = shooter.Id
+                LEFT JOIN 
+                    dbo.MatchTeamRoles AS shooter_role ON shooter.MatchTeamRoleId = shooter_role.Id
+                LEFT JOIN 
+                    dbo.MatchTeams AS shooter_team ON shooter_role.MatchTeamId = shooter_team.Id
+                LEFT JOIN 
+                    dbo.MatchHostDevices AS victim ON ev.MatchHostDeviceId = victim.Id
+                LEFT JOIN 
+                    dbo.MatchTeamRoles AS victim_role ON victim.MatchTeamRoleId = victim_role.Id
+                LEFT JOIN 
+                    dbo.MatchTeams AS victim_team ON victim_role.MatchTeamId = victim_team.Id
+                WHERE
+                    ev.Discriminator = 'MatchEventKilled';
             ";
 
             await using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 await connection.OpenAsync();
-                SetStatus("Krok 3/4: Pobieranie statystyk...");
+                SetStatus("Krok 3/4: Pobieranie logu trafień...");
                 await using (SqlCommand command = new SqlCommand(sqlQuery, connection))
                 {
                     command.Parameters.AddWithValue("@FetchCount", roundsToFetch);
@@ -472,15 +454,17 @@ namespace iCombatStatsExporter
                     {
                         while (await reader.ReadAsync())
                         {
-                            statsList.Add(new PlayerStats
+                            rawKillsList.Add(new RawKillEvent
                             {
                                 MatchId = reader["MatchId"].ToString(),
                                 MatchName = reader["MatchName"]?.ToString() ?? string.Empty,
                                 MatchTime = (DateTime)reader["MatchTime"],
-                                Gracz = reader["Gracz"].ToString(),
-                                Drużyna = reader["Drużyna"].ToString(),
-                                Zabojstwa = (int)reader["Zabojstwa"],
-                                Smierci = (int)reader["Smierci"]
+                                ShooterId = reader["ShooterId"]?.ToString(),
+                                ShooterName = reader["ShooterName"]?.ToString() ?? "Nieznany",
+                                ShooterTeam = reader["ShooterTeam"]?.ToString() ?? "Brak Drużyny",
+                                VictimId = reader["VictimId"]?.ToString(),
+                                VictimName = reader["VictimName"]?.ToString() ?? "Nieznany",
+                                VictimTeam = reader["VictimTeam"]?.ToString() ?? "Brak Drużyny"
                             });
                         }
                     }
@@ -488,15 +472,105 @@ namespace iCombatStatsExporter
             }
             SetStatus("Krok 4/4: Czyszczenie...");
             await DetachDatabaseAsync(tempDbName);
-            return statsList;
+            return rawKillsList;
+        }
+
+        // NOWA FUNKCJA: Przetwarza surowe dane w listy, których potrzebuje UI
+        private (List<MatchInfo> Matches, List<PlayerStats> PlayerStats) ProcessRawData(List<RawKillEvent> rawKills)
+        {
+            var allPlayerStats = new List<PlayerStats>();
+            var allMatches = new List<MatchInfo>();
+
+            // 1. Znajdź wszystkie unikalne ID meczy
+            var groupedByMatch = rawKills.GroupBy(k => k.MatchId);
+
+            int totalMatches = groupedByMatch.Count();
+            int matchCounter = totalMatches;
+
+            // Sortuj mecze po dacie (najnowsze pierwsze)
+            foreach (var matchGroup in groupedByMatch.OrderByDescending(g => g.First().MatchTime))
+            {
+                var matchEvents = matchGroup.ToList();
+                var firstEvent = matchEvents.First();
+
+                // 2. Znajdź wszystkich unikalnych graczy w tym meczu
+                var shooters = matchEvents.Select(e => new { Id = e.ShooterId, Name = e.ShooterName, Team = e.ShooterTeam });
+                var victims = matchEvents.Select(e => new { Id = e.VictimId, Name = e.VictimName, Team = e.VictimTeam });
+                var allPlayersInMatch = shooters.Concat(victims)
+                                             .Where(p => p.Id != null)
+                                             .GroupBy(p => p.Id)
+                                             .Select(g => g.First())
+                                             .ToList();
+
+                // 3. Sprawdź, czy to "Mecz na Cele"
+                bool isBaseMatch = allPlayersInMatch.Any(p => IsBase(p.Name));
+                string matchDisplayName = isBaseMatch ? $"Mecz na Cele {matchCounter}" : $"Mecz {matchCounter}";
+                matchCounter--;
+
+                string teamAName = allPlayersInMatch.Select(p => p.Team).FirstOrDefault(t => t != "Brak Drużyny") ?? "Drużyna A";
+                string teamBName = allPlayersInMatch.Select(p => p.Team).FirstOrDefault(t => t != "Brak Drużyny" && t != teamAName) ?? "Drużyna B";
+
+                string matchResultString;
+
+                if (isBaseMatch)
+                {
+                    // 4a. Logika "Meczu na Cele"
+                    int teamAHitsOnBase = matchEvents.Count(e => e.ShooterTeam == teamAName && IsBase(e.VictimName));
+                    int teamBHitsOnBase = matchEvents.Count(e => e.ShooterTeam == teamBName && IsBase(e.VictimName));
+
+                    if (teamAHitsOnBase > teamBHitsOnBase)
+                        matchResultString = $"{teamAName} Wygrała ({teamAHitsOnBase}-{teamBHitsOnBase} Cele)";
+                    else if (teamBHitsOnBase > teamAHitsOnBase)
+                        matchResultString = $"{teamBName} Wygrała ({teamBHitsOnBase}-{teamAHitsOnBase} Cele)";
+                    else
+                        matchResultString = $"Remis ({teamAHitsOnBase}-{teamBHitsOnBase} Cele)";
+                }
+                else
+                {
+                    // 4b. Logika standardowego meczu
+                    int teamAKills = matchEvents.Count(e => e.ShooterTeam == teamAName);
+                    int teamBKills = matchEvents.Count(e => e.ShooterTeam == teamBName);
+
+                    if (teamAKills > teamBKills)
+                        matchResultString = $"{teamAName} Wygrała ({teamAKills}-{teamBKills})";
+                    else if (teamBKills > teamAKills)
+                        matchResultString = $"{teamBName} Wygrała ({teamBKills}-{teamAKills})";
+                    else
+                        matchResultString = $"Remis ({teamAKills}-{teamBKills})";
+                }
+
+                // 5. Stwórz wpis dla listy meczy
+                allMatches.Add(new MatchInfo
+                {
+                    MatchId = firstEvent.MatchId,
+                    MatchName = matchDisplayName,
+                    OriginalMatchName = firstEvent.MatchName,
+                    MatchTime = firstEvent.MatchTime,
+                    MatchResult = matchResultString
+                });
+
+                // 6. Oblicz statystyki osobiste dla tego meczu
+                foreach (var player in allPlayersInMatch)
+                {
+                    allPlayerStats.Add(new PlayerStats
+                    {
+                        MatchId = firstEvent.MatchId,
+                        MatchName = firstEvent.MatchName, // <-- DODAJ TĘ LINIĘ
+                        MatchTime = firstEvent.MatchTime, // <-- DODAJ TĘ LINIĘ
+                        Gracz = player.Name,
+                        Drużyna = player.Team,
+                        Zabojstwa = matchEvents.Count(e => e.ShooterId == player.Id),
+                        Smierci = matchEvents.Count(e => e.VictimId == player.Id)
+                    });
+                }
+            }
+
+            return (allMatches, allPlayerStats);
         }
 
         // --- 6. FUNKCJE POMOCNICZE ---
 
-        // ===========================================
-        // ====== ZAKTUALIZOWANA FUNKCJA GetSummedStats ======
-        // ===========================================
-        // Teraz przyjmuje listę jako parametr
+        // ZAKTUALIZOWANA: Teraz przyjmuje listę
         private List<PlayerStats> GetSummedStats(List<PlayerStats> statsToSum)
         {
             if (statsToSum == null || statsToSum.Count == 0)
@@ -514,15 +588,27 @@ namespace iCombatStatsExporter
                 .ToList();
         }
 
-        private void DisplayStatsInGrids(List<PlayerStats> stats, string teamAName = null, string teamBName = null)
+        // NOWA FUNKCJA: Sprawdza, czy gracz to Baza
+        private bool IsBase(string playerName)
         {
-            var teamNames = stats.Select(s => s.Drużyna).Distinct().ToList();
+            return playerName == "Baza Daleko" || playerName == "Baza Blisko";
+        }
+
+        // ZAKTUALIZOWANA: Potrafi ukrywać bazy
+        private void DisplayStatsInGrids(List<PlayerStats> stats, string teamAName = null, string teamBName = null, bool excludeBases = false)
+        {
+            // Filtruj listę, jeśli trzeba
+            List<PlayerStats> filteredStats = excludeBases
+                ? stats.Where(s => !IsBase(s.Gracz)).ToList()
+                : stats;
+
+            var teamNames = filteredStats.Select(s => s.Drużyna).Distinct().ToList();
 
             TeamAName.Text = teamAName ?? (teamNames.Count > 0 ? teamNames[0] : "Drużyna A");
             TeamAGrid.ItemsSource = null;
             if (teamNames.Count > 0)
             {
-                TeamAGrid.ItemsSource = stats
+                TeamAGrid.ItemsSource = filteredStats
                     .Where(s => s.Drużyna == teamNames[0])
                     .OrderByDescending(s => s.Zabojstwa)
                     .ToList();
@@ -532,7 +618,7 @@ namespace iCombatStatsExporter
             TeamBGrid.ItemsSource = null;
             if (teamNames.Count > 1)
             {
-                TeamBGrid.ItemsSource = stats
+                TeamBGrid.ItemsSource = filteredStats
                     .Where(s => s.Drużyna == teamNames[1])
                     .OrderByDescending(s => s.Zabojstwa)
                     .ToList();
@@ -591,21 +677,20 @@ namespace iCombatStatsExporter
 
 
     // =========================================================================
-    // ====== KLASA PDF (ZMIANA W KONSTRUKTORZE I ComposeSummaryPage) ======
+    // ====== KLASA PDF (ZAKTUALIZOWANA DLA NOWEJ LOGIKI) ======
     // =========================================================================
     public class PdfReportDocument : IDocument
     {
-        private readonly List<MatchInfo> _matchesForTeamSummary; // <-- Zmieniona lista
-        private readonly List<PlayerStats> _statsForPersonalSummary; // <-- Zmieniona lista
-        private readonly List<PlayerStats> _summaryStats;
+        private readonly List<MatchInfo> _matchesForTeamSummary;
+        private readonly List<PlayerStats> _allPlayerStats; // Teraz przekazujemy pełną listę
+        private readonly List<PlayerStats> _summaryStats; // To są już zsumowane statystyki osobiste
 
-        // ZAKTUALIZOWANY KONSTRUKTOR
         public PdfReportDocument(List<MatchInfo> matches, List<PlayerStats> allStats, List<PlayerStats> summaryStats)
         {
             // Przekazujemy przefiltrowane listy
             _matchesForTeamSummary = matches.OrderBy(m => m.MatchTime).ToList();
-            _statsForPersonalSummary = allStats;
-            _summaryStats = summaryStats;
+            _allPlayerStats = allStats; // Pełna lista statystyk
+            _summaryStats = summaryStats; // Wstępnie przefiltrowana i zsumowana lista
         }
 
         public DocumentMetadata GetMetadata() => DocumentMetadata.Default;
@@ -613,57 +698,60 @@ namespace iCombatStatsExporter
 
         public void Compose(IDocumentContainer container)
         {
-            // Iteruj po meczach, które mają być wliczane do statystyk osobistych
-            // (aby nie pominąć meczu z odznaczoną drużyną, ale wliczonymi statami)
-            var matchesToDisplay = _statsForPersonalSummary
-                .Select(s => new { s.MatchId, s.MatchName, s.MatchTime })
+            // Będziemy iterować po liście meczy (która zawiera już logikę "Mecz na Cele")
+            // Ale musimy też wyświetlić mecze, które są odznaczone, ale mają 'IncludePersonalStats'
+
+            var matchesToDisplay = _allPlayerStats
+                .Select(s => s.MatchId)
                 .Distinct()
+                .ToList();
+
+            var sortedMatchInfos = matchesToDisplay
+                .Select(id => _matchesForTeamSummary.FirstOrDefault(m => m.MatchId == id)
+                             // Jeśli mecz został całkowicie odfiltrowany, stwórz tymczasowy
+                             ?? new MatchInfo { MatchId = id, MatchName = "Mecz (wykluczony)", MatchResult = "Wykluczony", MatchTime = _allPlayerStats.First(s => s.MatchId == id).MatchTime })
                 .OrderBy(m => m.MatchTime)
                 .ToList();
 
-            foreach (var match in matchesToDisplay)
-            {
-                // Znajdź oryginalny obiekt MatchInfo (dla wyniku)
-                var originalMatchInfo = _matchesForTeamSummary.FirstOrDefault(m => m.MatchId == match.MatchId);
-                string matchResult = originalMatchInfo?.MatchResult ?? "Wynik wykluczony z sumy";
-                string matchName = originalMatchInfo?.MatchName ?? $"Mecz ({match.MatchId.Substring(0, 4)}...)";
 
-                var statsForMatch = _statsForPersonalSummary.Where(s => s.MatchId == match.MatchId).ToList();
+            foreach (var match in sortedMatchInfos)
+            {
+                var statsForMatch = _allPlayerStats.Where(s => s.MatchId == match.MatchId).ToList();
 
                 container.Page(page =>
                 {
                     page.Margin(30);
-                    ComposeMatchPage(page, matchName, matchResult, statsForMatch);
+                    // Pokaż Bazy na stronach pojedynczych meczy
+                    ComposeMatchPage(page, match.MatchName, match.MatchResult, statsForMatch, false);
                 });
             }
 
             container.Page(page =>
             {
                 page.Margin(30);
-                ComposeSummaryPage(page, _summaryStats); // Przekaż zsumowane statystyki
+                // Ukryj Bazy na stronie podsumowania
+                ComposeSummaryPage(page, _summaryStats);
             });
         }
 
-        // Zaktualizowano parametry
-        private void ComposeMatchPage(PageDescriptor page, string matchName, string matchResult, List<PlayerStats> stats)
+        private void ComposeMatchPage(PageDescriptor page, string matchName, string matchResult, List<PlayerStats> stats, bool excludeBases)
         {
             page.Header().Element(container => ComposeHeader(container, matchName, matchResult));
-            page.Content().Element(container => ComposeStatsGrid(container, stats, false));
+            page.Content().Element(container => ComposeStatsGrid(container, stats, false, excludeBases));
             page.Footer().Element(ComposeFooter);
         }
 
-        // ZAKTUALIZOWANA FUNKCJA PDF
         private void ComposeSummaryPage(PageDescriptor page, List<PlayerStats> summaryStats)
         {
             // --- Nagłówek ---
             page.Header().Element(container =>
             {
-                // Musimy obliczyć te dane na nowo na podstawie przefiltrowanych list
-                var teamNames = _statsForPersonalSummary.Select(s => s.Drużyna).Distinct().ToList();
-                string teamAName = (teamNames.Count > 0) ? teamNames[0] : "Drużyna A";
-                string teamBName = (teamNames.Count > 1) ? teamNames[1] : "Drużyna B";
+                // Obliczamy te dane na nowo na podstawie przefiltrowanych list
+                var teamNames = _allPlayerStats.Select(s => s.Drużyna).Distinct().ToList();
+                string teamAName = teamNames.FirstOrDefault(n => n != "Brak Drużyny") ?? "Drużyna A";
+                string teamBName = teamNames.FirstOrDefault(n => n != "Brak Drużyny" && n != teamAName) ?? "Drużyna B";
 
-                // Użyj 'summaryStats' (już zsumowane statystyki osobiste)
+                // Użyj 'summaryStats' (już zsumowane statystyki osobiste, BEZ BAZ)
                 int teamAKills = summaryStats.Where(s => s.Drużyna == teamAName).Sum(s => s.Zabojstwa);
                 int teamBKills = summaryStats.Where(s => s.Drużyna == teamBName).Sum(s => s.Zabojstwa);
 
@@ -677,20 +765,18 @@ namespace iCombatStatsExporter
                     col.Item().AlignCenter().Text($"{teamAName} ({teamAWins} wygranych) vs {teamBName} ({teamBWins} wygranych)").Bold().FontSize(18);
 
                     if (draws > 0)
-                    {
                         col.Item().AlignCenter().Text($"(Remisy: {draws})").FontSize(14);
-                    }
 
                     col.Item().AlignCenter().Text($"Całkowite trafienia: {teamAKills} - {teamBKills}").FontSize(14);
                     col.Item().PaddingVertical(10);
                 });
             });
 
-            page.Content().Element(container => ComposeStatsGrid(container, summaryStats, true));
+            // Przekaż 'excludeBases: true', aby ukryć bazy na stronie podsumowania
+            page.Content().Element(container => ComposeStatsGrid(container, summaryStats, true, true));
             page.Footer().Element(ComposeFooter);
         }
 
-        // Nagłówek dla pojedynczego meczu (bez zmian)
         private void ComposeHeader(IContainer container, string title, string subtitle)
         {
             container.Column(col =>
@@ -713,14 +799,19 @@ namespace iCombatStatsExporter
             });
         }
 
-        private void ComposeStatsGrid(IContainer container, List<PlayerStats> stats, bool isSummaryPage = false)
+        // ZAKTUALIZOWANA: Dodano 'excludeBases'
+        private void ComposeStatsGrid(IContainer container, List<PlayerStats> stats, bool isSummaryPage = false, bool excludeBases = false)
         {
-            var teamNames = stats.Select(s => s.Drużyna).Distinct().ToList();
+            var filteredStats = excludeBases
+                ? stats.Where(s => !IsBase(s.Gracz)).ToList()
+                : stats;
+
+            var teamNames = filteredStats.Select(s => s.Drużyna).Distinct().ToList();
             var teamAStats = (teamNames.Count > 0)
-                ? stats.Where(s => s.Drużyna == teamNames[0]).OrderByDescending(s => s.Zabojstwa).ToList()
+                ? filteredStats.Where(s => s.Drużyna == teamNames[0]).OrderByDescending(s => s.Zabojstwa).ToList()
                 : new List<PlayerStats>();
             var teamBStats = (teamNames.Count > 1)
-                ? stats.Where(s => s.Drużyna == teamNames[1]).OrderByDescending(s => s.Zabojstwa).ToList()
+                ? filteredStats.Where(s => s.Drużyna == teamNames[1]).OrderByDescending(s => s.Zabojstwa).ToList()
                 : new List<PlayerStats>();
 
             var teamAName = (teamNames.Count > 0) ? teamNames[0] : "Drużyna A";
@@ -745,6 +836,12 @@ namespace iCombatStatsExporter
                     ComposeStatsTable(col.Item(), teamBStats);
                 });
             });
+        }
+
+        // ZAKTUALIZOWANA: Dodano helper IsBase
+        private bool IsBase(string playerName)
+        {
+            return playerName == "Baza Daleko" || playerName == "Baza Blisko";
         }
 
         // Nagłówki tabel (bez zmian)
