@@ -60,12 +60,29 @@
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding MatchName}" FontWeight="Bold" FontSize="14"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding MatchResult}" FontWeight="Bold" FontSize="12" Foreground="#008A00" Margin="10,0,0,0" HorizontalAlignment="Right"/>
+
+                                        <CheckBox x:Name="MatchSelectorCheckBox"
+                                                  Grid.Column="0"
+                                                  IsChecked="{Binding IsSelectedForSummary}"
+                                                  Click="MatchSelectorCheckBox_Click"
+                                                  VerticalAlignment="Center"/>
+
+                                        <TextBlock Grid.Column="1" Text="{Binding MatchName}" FontWeight="Bold" FontSize="14" Margin="5,0,0,0" VerticalAlignment="Center"/>
+
+                                        <TextBlock Grid.Column="2" 
+                                                   Text="{Binding MatchResult}" 
+                                                   FontWeight="Bold" 
+                                                   FontSize="12" 
+                                                   Foreground="#008A00" 
+                                                   Margin="10,0,0,0"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center"/>
                                     </Grid>
-                                    <TextBlock Text="{Binding MatchTime, StringFormat='dd.MM.yyyy HH:mm'}" FontSize="11" Opacity="0.8"/>
+
+                                    <TextBlock Text="{Binding MatchTime, StringFormat='dd.MM.yyyy HH:mm'}" FontSize="11" Opacity="0.8" Margin="23,0,0,0"/>
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -115,14 +132,25 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock x:Name="MatchResultTextBlock"
-                           Grid.Row="0"
-                           Grid.ColumnSpan="2"
-                           Text="Wybierz mecz z listy"
-                           FontSize="18"
-                           FontWeight="Bold"
-                           HorizontalAlignment="Center"
-                           Margin="0,0,0,10"/>
+                <StackPanel Grid.Row="0" Grid.ColumnSpan="2" HorizontalAlignment="Center" Margin="0,0,0,10">
+
+                    <TextBlock x:Name="SummaryLine1TextBlock"
+                               Text="Wybierz mecz z listy"
+                               FontSize="18"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"/>
+
+                    <TextBlock x:Name="SummaryLine2TextBlock"
+                               Text="" 
+                               FontSize="14"
+                               HorizontalAlignment="Center"
+                               Visibility="Collapsed"/>
+                    <TextBlock x:Name="SummaryLine3TextBlock"
+                               Text="" 
+                               FontSize="14"
+                               HorizontalAlignment="Center"
+                               Visibility="Collapsed"/>
+                </StackPanel>
 
                 <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
@@ -139,9 +167,9 @@
                         <DataGrid x:Name="TeamAGrid" Grid.Row="1" IsReadOnly="True" AutoGenerateColumns="False" FontSize="14">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Gracz" Binding="{Binding Gracz}" Width="*"/>
-                                <DataGridTextColumn Header="Zabójstwa" Binding="{Binding Zabojstwa}" Width="Auto"/>
+                                <DataGridTextColumn Header="Trafienia" Binding="{Binding Zabojstwa}" Width="Auto"/>
                                 <DataGridTextColumn Header="Śmierci" Binding="{Binding Smierci}" Width="Auto"/>
-                                <DataGridTextColumn Header="K/D Ratio" Binding="{Binding KDRatio, StringFormat='F2'}" Width="Auto"/>
+                                <DataGridTextColumn Header="Skuteczność" Binding="{Binding KDRatio, StringFormat='F2'}" Width="Auto"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Grid>
@@ -155,9 +183,9 @@
                         <DataGrid x:Name="TeamBGrid" Grid.Row="1" IsReadOnly="True" AutoGenerateColumns="False" FontSize="14">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Gracz" Binding="{Binding Gracz}" Width="*"/>
-                                <DataGridTextColumn Header="Zabójstwa" Binding="{Binding Zabojstwa}" Width="Auto"/>
+                                <DataGridTextColumn Header="Trafienia" Binding="{Binding Zabojstwa}" Width="Auto"/>
                                 <DataGridTextColumn Header="Śmierci" Binding="{Binding Smierci}" Width="Auto"/>
-                                <DataGridTextColumn Header="K/D Ratio" Binding="{Binding KDRatio, StringFormat='F2'}" Width="Auto"/>
+                                <DataGridTextColumn Header="Skuteczność" Binding="{Binding KDRatio, StringFormat='F2'}" Width="Auto"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Grid>
