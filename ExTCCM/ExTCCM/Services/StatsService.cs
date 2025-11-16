@@ -1,113 +1,54 @@
-﻿using System;
+﻿using ExTCCM.Database.Context;
+using ExTCCM.Models;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using ExTCCM.Models;
-using Microsoft.Data.SqlClient;
 
 namespace ExTCCM.Services
 {
     public class StatsService
     {
-        // --- USTAWIENIA ---
-        // Logiczna nazwa bazy z Twojego zrzutu ekranu SSMS
-        private const string DatabaseLogicalName = "ICEDB_42c9ed682c7a4d398ddd90a861a5f18a";
-        private const string ServerName = "(LocalDB)\\MSSQLLocalDB";
-
-        // --- FUNKCJE PUBLICZNE ---
-
+       
         public async Task<List<RawKillEvent>> LoadStatsAsync(int roundsToFetch)
         {
-            // Cała logika kopiowania i odłączania została usunięta
+            
+            await using var context = new StatsDbContext();
 
-            var rawKillsList = new List<RawKillEvent>();
-
-            // OSTATECZNY CONNECTION STRING:
-            // Łączy się z serwerem i prosi o bazę o konkretnej nazwie logicznej.
-            string connectionString = $"Server={ServerName};Database={DatabaseLogicalName};Integrated Security=True;";
-
-            // Zapytanie SQL (bez zmian)
-            string sqlQuery = @"
-                DECLARE @RoundsToFetch INT = @FetchCount;
-                WITH LatestMatches AS (
-                    SELECT TOP (@RoundsToFetch) Id, Name, Created FROM dbo.Matches ORDER BY Created DESC
-                ), AllEvents AS (
-                    SELECT 
-                        ev.MatchId,
-                        ev.ShooterMatchHostDeviceId1,
-                        ev.MatchHostDeviceId,
-                        ev.Discriminator
-                    FROM dbo.MatchEvents AS ev
-                    WHERE ev.MatchId IN (SELECT Id FROM LatestMatches)
-                      AND ev.Discriminator = 'MatchEventKilled'
-                ),
-                PlayerDevices AS (
-                    SELECT 
-                        dev.Id,
-                        dev.PlayerName,
-                        t.Name AS TeamName
-                    FROM dbo.MatchHostDevices AS dev
-                    LEFT JOIN dbo.MatchTeamRoles AS r ON dev.MatchTeamRoleId = r.Id
-                    LEFT JOIN dbo.MatchTeams AS t ON r.MatchTeamId = t.Id
+            
+            var rawKillsList = await context.Matches
+                .OrderByDescending(m => m.Created) 
+                .Take(roundsToFetch) 
+                .SelectMany(
+                    m => context.MatchEvents
+                        .Where(ev => ev.MatchId == m.Id && ev.Discriminator == "MatchEventKilled")
+                        .DefaultIfEmpty(), 
+                    (m, ev) => new { m, ev } 
                 )
-                SELECT
-                    m.Id AS 'MatchId',
-                    m.Name AS 'MatchName',
-                    m.Created AS 'MatchTime',
-                    
-                    shooter.Id AS 'ShooterId',
-                    shooter.PlayerName AS 'ShooterName',
-                    shooter.TeamName AS 'ShooterTeam',
-                    
-                    victim.Id AS 'VictimId',
-                    victim.PlayerName AS 'VictimName',
-                    victim.TeamName AS 'VictimTeam'
-                    
-                FROM 
-                    LatestMatches AS m -- <-- ZMIANA: Zaczynamy od Meczów
-                LEFT JOIN -- <-- ZMIANA: Używamy LEFT JOIN
-                    AllEvents AS ev ON ev.MatchId = m.Id
-                LEFT JOIN 
-                    PlayerDevices AS shooter ON ev.ShooterMatchHostDeviceId1 = shooter.Id
-                LEFT JOIN 
-                    PlayerDevices AS victim ON ev.MatchHostDeviceId = victim.Id;
-            ";
-
-            await using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                // To musi być uruchomione z uprawnieniami Admina, 
-                // aby "zobaczyć" bazę podłączoną przez iCombat (który też jest Adminem)
-                await connection.OpenAsync();
-
-                await using (SqlCommand command = new SqlCommand(sqlQuery, connection))
+                .Select(x => new RawKillEvent
                 {
-                    command.Parameters.AddWithValue("@FetchCount", roundsToFetch);
-                    await using (SqlDataReader reader = await command.ExecuteReaderAsync())
-                    {
-                        while (await reader.ReadAsync())
-                        {
-                            rawKillsList.Add(new RawKillEvent
-                            {
-                                MatchId = reader["MatchId"].ToString(),
-                                MatchName = reader["MatchName"]?.ToString() ?? string.Empty,
-                                MatchTime = (DateTime)reader["MatchTime"],
-                                ShooterId = reader["ShooterId"]?.ToString(),
-                                ShooterName = reader["ShooterName"]?.ToString() ?? "Nieznany",
-                                ShooterTeam = reader["ShooterTeam"]?.ToString() ?? "Brak Drużyny",
-                                VictimId = reader["VictimId"]?.ToString(),
-                                VictimName = reader["VictimName"]?.ToString() ?? "Nieznany",
-                                VictimTeam = reader["VictimTeam"]?.ToString() ?? "Brak Drużyny"
-                            });
-                        }
-                    }
-                }
-            }
+                    MatchId = x.m.Id.ToString(),
+                    MatchName = x.m.Name,
+                    MatchTime = x.m.Created,
+
+                    
+                    ShooterId = x.ev.Shooter.Id.ToString(),
+                    ShooterName = x.ev.Shooter.PlayerName ?? "Nieznany",
+                    ShooterTeam = x.ev.Shooter.MatchTeamRole.MatchTeam.Name ?? "Brak Drużyny",
+
+                    VictimId = x.ev.Victim.Id.ToString(),
+                    VictimName = x.ev.Victim.PlayerName ?? "Nieznany",
+                    VictimTeam = x.ev.Victim.MatchTeamRole.MatchTeam.Name ?? "Brak Drużyny"
+                })
+                .ToListAsync(); 
 
             return rawKillsList;
         }
 
-        // Funkcja ProcessRawData (bez zmian)
+       
         public (List<MatchInfo> Matches, List<PlayerStats> PlayerStats) ProcessRawData(List<RawKillEvent> rawKills)
         {
             var allPlayerStats = new List<PlayerStats>();
@@ -191,7 +132,7 @@ namespace ExTCCM.Services
             return (allMatches, allPlayerStats);
         }
 
-        // Funkcja GetSummedStats (bez zmian)
+        
         public List<PlayerStats> GetSummedStats(List<PlayerStats> statsToSum)
         {
             if (statsToSum == null || statsToSum.Count == 0)
@@ -209,7 +150,7 @@ namespace ExTCCM.Services
                 .ToList();
         }
 
-        // Funkcja IsBase (bez zmian)
+       
         public bool IsBase(string playerName)
         {
             return playerName == "Baza Daleko" || playerName == "Baza Blisko";

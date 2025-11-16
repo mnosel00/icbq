@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,26 +11,37 @@ namespace ExTCCM.Database.Context
 {
     public class StatsDbContext : DbContext
     {
-        // Nazwa logiczna bazy z SSMS
-        private const string DatabaseLogicalName = "ICEDB_42c9ed682c7a4d398ddd90a861a5f18a";
-        private const string ServerName = "(LocalDB)\\MSSQLLocalDB";
+        // Usunęliśmy stałe 'DatabaseLogicalName' i 'ServerName'
 
-        // Definiujemy tabele, do których chcemy mieć dostęp
+        // Definiujemy tabele (bez zmian)
         public DbSet<Match> Matches { get; set; }
         public DbSet<MatchEvent> MatchEvents { get; set; }
         public DbSet<MatchHostDevice> MatchHostDevices { get; set; }
         public DbSet<MatchTeam> MatchTeams { get; set; }
         public DbSet<MatchTeamRole> MatchTeamRoles { get; set; }
 
+        // ===== CAŁA TA FUNKCJA JEST NOWA =====
         // Mówimy EF Core, jak ma się połączyć
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            // Nasz "magiczny" connection string, który działa, gdy iCombat jest uruchomiony
-            string connectionString = $"Server={ServerName};Database={DatabaseLogicalName};Integrated Security=True;TrustServerCertificate=True;";
+            // 1. Zbuduj obiekt konfiguracji
+            var configBuilder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory()) // Szukaj pliku tam, gdzie jest .exe
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+
+            IConfigurationRoot configuration = configBuilder.Build();
+
+            // 2. Odczytaj wartości z pliku JSON
+            string serverName = configuration.GetSection("DatabaseSettings:ServerName").Value;
+            string dbName = configuration.GetSection("DatabaseSettings:DatabaseLogicalName").Value;
+
+            // 3. Zbuduj connection string
+            string connectionString = $"Server={serverName};Database={dbName};Integrated Security=True;TrustServerCertificate=True;";
+
             optionsBuilder.UseSqlServer(connectionString);
         }
 
-        // Mówimy EF Core, że niektóre relacje są opcjonalne (aby uniknąć błędów)
+        // Funkcja OnModelCreating jest bez zmian
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -37,7 +50,7 @@ namespace ExTCCM.Database.Context
                 .HasOne(e => e.Shooter)
                 .WithMany()
                 .HasForeignKey(e => e.ShooterId)
-                .OnDelete(DeleteBehavior.Restrict); // Nie usuwaj gracza, gdy zdarzenie jest usuwane
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<MatchEvent>()
                 .HasOne(e => e.Victim)
@@ -47,3 +60,4 @@ namespace ExTCCM.Database.Context
         }
     }
 }
+

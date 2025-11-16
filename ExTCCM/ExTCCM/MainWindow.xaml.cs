@@ -16,7 +16,6 @@ namespace iCombatStatsExporter
 {
     public partial class MainWindow : Window
     {
-        // === GŁÓWNA LOGIKA APLIKACJI ===
         private readonly StatsService _statsService;
 
         private List<PlayerStats> _allPlayerStats = new List<PlayerStats>();
@@ -26,17 +25,12 @@ namespace iCombatStatsExporter
         public MainWindow()
         {
             InitializeComponent();
-            Directory.CreateDirectory(@"C:\StatsTemp\");
             QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
-            // Stwórz instancję naszego serwisu
             _statsService = new StatsService();
         }
 
-        // Przycisk "POBIERZ"
-        // W pliku MainWindow.xaml.cs
-
-        // Przycisk "POBIERZ"
+        
         private async void LoadStatsButton_Click(object sender, RoutedEventArgs e)
         {
             SetUiEnabled(false, "Rozpoczynanie...");
@@ -78,8 +72,6 @@ namespace iCombatStatsExporter
             }
             catch (SqlException sqlEx)
             {
-                // === ZMIANA TUTAJ ===
-                // Nowy, poprawny komunikat błędu
                 HandleError($"BŁĄD BAZY DANYCH: Nie można się połączyć.\n\n" +
                             $"UPEWNIJ SIĘ, ŻE PROGRAM 'iCombat.Bootloader' JEST URUCHOMIONY.\n\n" +
                             $"(Aplikacja musi być uruchomiona z uprawnieniami Administratora, aby 'zobaczyć' bazę iCombat).",
@@ -93,7 +85,7 @@ namespace iCombatStatsExporter
             {
                 SetUiEnabled(_allPlayerStats.Count > 0);
             }
-        }        // Obsługa CheckBoxa
+        }        
         private void MatchSelectorCheckBox_Click(object sender, RoutedEventArgs e)
         {
             if (sender is not CheckBox checkBox) return;
@@ -132,7 +124,6 @@ namespace iCombatStatsExporter
             }
         }
 
-        // Przycisk "SUMUJ WSZYSTKO"
         private void SumAllButton_Click(object sender, RoutedEventArgs e)
         {
             if (_allPlayerStats == null || _allPlayerStats.Count == 0) return;
@@ -161,7 +152,7 @@ namespace iCombatStatsExporter
             int teamBWins = matchesForTeamSummary.Count(m => m.MatchResult.StartsWith(teamBName));
             int draws = matchesForTeamSummary.Count(m => m.MatchResult.StartsWith("Remis"));
 
-            string line1 = $"Suma: {teamAName} ({teamAWins} wygranych) vs {teamBName} ({teamBWins} wygranych)";
+            string line1 = $"{teamAName} ({teamAWins} wygranych) vs {teamBName} ({teamBWins} wygranych)";
             string line2 = $"(Remisy: {draws})";
             string line3 = $"Całkowite trafienia: {teamAKills} - {teamBKills}";
 
@@ -172,7 +163,7 @@ namespace iCombatStatsExporter
             SummaryLine3TextBlock.Text = line3;
             SummaryLine3TextBlock.Visibility = Visibility.Visible;
 
-            DisplayStatsInGrids(summedStats, $"Suma - {teamAName}", $"Suma - {teamBName}", excludeBases: true);
+            DisplayStatsInGrids(summedStats, $" {teamAName}", $" {teamBName}", excludeBases: true);
             MatchesListBox.SelectedIndex = -1;
         }
 
@@ -194,7 +185,6 @@ namespace iCombatStatsExporter
             DisplayStatsInGrids(filteredStats, null, null, excludeBases: false);
         }
 
-        // Przycisk "GENERUJ PDF"
         private void GeneratePdfButton_Click(object sender, RoutedEventArgs e)
         {
             if (_allPlayerStats == null || _allPlayerStats.Count == 0)
@@ -255,7 +245,6 @@ namespace iCombatStatsExporter
             }
         }
 
-        // Przycisk "WYŚLIJ EMAIL"
         private void SendEmailButton_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(_lastGeneratedPdfPath) || !File.Exists(_lastGeneratedPdfPath))
@@ -274,8 +263,8 @@ namespace iCombatStatsExporter
             try
             {
                 SetStatus("Otwieranie klienta poczty...");
-                string subject = System.Web.HttpUtility.UrlEncode("Raport Statystyk iCombat");
-
+                string reportDate = DateTime.Now.ToString("dd.MM.yyyy"); // Pobierz dzisiejszą datę
+                string subject = System.Web.HttpUtility.UrlEncode($"Statystyki z gry {reportDate}");
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = $"mailto:{email}?subject={subject}",
