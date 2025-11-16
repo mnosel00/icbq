@@ -6,8 +6,8 @@
         xmlns:local="clr-namespace:ExTCCM"
         mc:Ignorable="d"
         Title="iCombat Stats Exporter" Height="650" Width="850"
-        WindowStartupLocation="CenterScreen">
-
+        WindowStartupLocation="CenterScreen"
+        Background="#F0F0F0">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
@@ -22,7 +22,7 @@
 
             <StackPanel Grid.Column="0" Margin="0,0,10,0">
 
-                <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="3" Padding="10">
+                <Border>
                     <StackPanel>
                         <TextBlock Text="Ilość meczy do pobrania:" FontWeight="Bold" Margin="0,0,0,5"/>
                         <Grid>
@@ -31,13 +31,13 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
-                            <TextBox x:Name="RoundsToFetchTextBox" Grid.Column="0" Text="5" VerticalContentAlignment="Center" FontSize="16" Margin="0,0,10,0" Padding="5"/>
-                            <Button x:Name="LoadStatsButton" Grid.Column="1" Content="Pobierz" FontSize="14" FontWeight="Bold" Padding="10,5" Click="LoadStatsButton_Click" MinWidth="80"/>
+                            <TextBox x:Name="RoundsToFetchTextBox" Grid.Column="0" Text="5" Margin="0,0,10,0"/>
+                            <Button x:Name="LoadStatsButton" Grid.Column="1" Content="Pobierz" Click="LoadStatsButton_Click" Style="{StaticResource PrimaryButton}"/>
                         </Grid>
                     </StackPanel>
                 </Border>
 
-                <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,10,0,0" Height="250">
+                <Border Height="250">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -48,9 +48,7 @@
 
                         <ListBox x:Name="MatchesListBox" 
                                  Grid.Row="1" 
-                                 SelectionChanged="MatchesListBox_SelectionChanged"
-                                 IsEnabled="False"
-                                 HorizontalContentAlignment="Stretch">
+                                 SelectionChanged="MatchesListBox_SelectionChanged">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Margin="2">
@@ -86,36 +84,26 @@
                     </Grid>
                 </Border>
 
-                <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,10,0,0">
+                <Border>
                     <Button x:Name="SumAllButton" 
                             Content="Sumuj Wszystkie Pobrane" 
-                            Padding="10"
-                            FontSize="14"
-                            IsEnabled="False" 
                             Click="SumAllButton_Click"/>
                 </Border>
 
-                <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,10,0,0">
+                <Border>
                     <StackPanel>
                         <TextBlock Text="Wyślij raport e-mail:" FontWeight="Bold" Margin="0,0,0,5"/>
                         <TextBlock Text="Odbiorca:" FontSize="11" Opacity="0.7"/>
                         <TextBox x:Name="EmailTextBox" 
                                  Text="przyklad@email.com" 
-                                 Margin="0,0,0,10"
-                                 Padding="5"/>
+                                 Margin="0,0,0,10"/>
 
                         <Button x:Name="GeneratePdfButton" 
                                 Content="1. Generuj Raport PDF" 
-                                Padding="10"
-                                IsEnabled="False"
-                                HorizontalAlignment="Stretch"
                                 Click="GeneratePdfButton_Click"/>
 
                         <Button x:Name="SendEmailButton" 
                                 Content="2. Wyślij Email (z PDF)" 
-                                Padding="10"
-                                IsEnabled="False"
-                                HorizontalAlignment="Stretch"
                                 Margin="0,5,0,0"
                                 Click="SendEmailButton_Click"/>
 
@@ -131,21 +119,9 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0" Grid.ColumnSpan="2" HorizontalAlignment="Center" Margin="0,0,0,10">
-                    <TextBlock x:Name="SummaryLine1TextBlock"
-                               Text="Wybierz mecz z listy"
-                               FontSize="18"
-                               FontWeight="Bold"
-                               HorizontalAlignment="Center"/>
-                    <TextBlock x:Name="SummaryLine2TextBlock"
-                               Text="" 
-                               FontSize="14"
-                               HorizontalAlignment="Center"
-                               Visibility="Collapsed"/>
-                    <TextBlock x:Name="SummaryLine3TextBlock"
-                               Text="" 
-                               FontSize="14"
-                               HorizontalAlignment="Center"
-                               Visibility="Collapsed"/>
+                    <TextBlock x:Name="SummaryLine1TextBlock" Text="Wybierz mecz z listy" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="SummaryLine2TextBlock" Text="" FontSize="14" HorizontalAlignment="Center" Visibility="Collapsed"/>
+                    <TextBlock x:Name="SummaryLine3TextBlock" Text="" FontSize="14" HorizontalAlignment="Center" Visibility="Collapsed"/>
                 </StackPanel>
 
                 <Grid Grid.Row="1">
@@ -160,11 +136,7 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <TextBlock x:Name="TeamAName" Grid.Row="0" Text="Drużyna A" FontSize="16" FontWeight="Bold" Margin="5"/>
-
-                        <DataGrid x:Name="TeamAGrid" Grid.Row="1" IsReadOnly="True" AutoGenerateColumns="False" FontSize="14" 
-                                  HeadersVisibility="Column" 
-                                  GridLinesVisibility="Horizontal" 
-                                  HorizontalGridLinesBrush="#CCCCCC">
+                        <DataGrid x:Name="TeamAGrid" Grid.Row="1">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Gracz" Binding="{Binding Gracz}" Width="*"/>
                                 <DataGridTextColumn Header="Trafienia" Binding="{Binding Zabojstwa}" Width="Auto"/>
@@ -180,11 +152,7 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <TextBlock x:Name="TeamBName" Grid.Row="0" Text="Drużyna B" FontSize="16" FontWeight="Bold" Margin="5"/>
-
-                        <DataGrid x:Name="TeamBGrid" Grid.Row="1" IsReadOnly="True" AutoGenerateColumns="False" FontSize="14" 
-                                  HeadersVisibility="Column"
-                                  GridLinesVisibility="Horizontal" 
-                                  HorizontalGridLinesBrush="#CCCCCC">
+                        <DataGrid x:Name="TeamBGrid" Grid.Row="1">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Gracz" Binding="{Binding Gracz}" Width="*"/>
                                 <DataGridTextColumn Header="Trafienia" Binding="{Binding Zabojstwa}" Width="Auto"/>

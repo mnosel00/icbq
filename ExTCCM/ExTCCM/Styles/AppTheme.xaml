@@ -1,0 +1,71 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <SolidColorBrush x:Key="AppBorderBrush" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="AppAccentBrush" Color="#0078D4"/>
+    <SolidColorBrush x:Key="AppAccentForegroundBrush" Color="#FFFFFF"/>
+
+    <Thickness x:Key="ControlMargin" Top="0" Bottom="10" Left="0" Right="0"/>
+    <CornerRadius x:Key="ControlCornerRadius" TopLeft="4" TopRight="4" BottomLeft="4" BottomRight="4"/>
+    <Style TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource AppBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource AppBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}"/>
+        <Setter Property="Padding" Value="10"/>
+        <Setter Property="Margin" Value="{StaticResource ControlMargin}"/>
+    </Style>
+
+    <Style TargetType="Button">
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="Background" Value="{StaticResource AppAccentBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource AppAccentForegroundBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Style.Triggers>
+            <Trigger Property="IsEnabled" Value="True">
+                <Setter Property="Opacity" Value="1.0"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.5"/>
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Opacity" Value="0.8"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="MinWidth" Value="80"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+        <Setter Property="IsEnabled" Value="True"/>
+    </Style>
+
+    <Style TargetType="DataGrid">
+        <Setter Property="IsReadOnly" Value="True"/>
+        <Setter Property="AutoGenerateColumns" Value="False"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="HeadersVisibility" Value="Column"/>
+        <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource AppBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="CanUserResizeColumns" Value="False"/>
+    </Style>
+
+    <Style TargetType="ListBox">
+        <Setter Property="IsEnabled" Value="False"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
+    <Style TargetType="TextBox">
+        <Setter Property="Padding" Value="5"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="FontSize" Value="14"/>
+    </Style>
+
+</ResourceDictionary>
