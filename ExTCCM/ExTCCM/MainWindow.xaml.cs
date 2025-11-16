@@ -12,7 +12,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 
-namespace iCombatStatsExporter
+namespace ExTCCM
 {
     public partial class MainWindow : Window
     {
