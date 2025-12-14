@@ -1,9 +1,12 @@
 ﻿using ExTCCM.Models;
+using QuestPDF.Drawing;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using QuestPDF.Skia;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -45,59 +48,95 @@ namespace ExTCCM.Documents
                 container.Page(page =>
                 {
                     page.Margin(30);
-                    ComposeMatchPage(page, originalMatchInfo.MatchName, originalMatchInfo.MatchResult, statsForMatch, false);
+                    ComposePageElements(page, () => ComposeMatchPageContent(page, originalMatchInfo.MatchName, originalMatchInfo.MatchResult, statsForMatch, false));
                 });
             }
 
             container.Page(page =>
             {
                 page.Margin(30);
-                ComposeSummaryPage(page, _summaryStats);
+                ComposePageElements(page, () => ComposeSummaryPageContent(page, _summaryStats));
             });
         }
 
-        private void ComposeMatchPage(PageDescriptor page, string matchName, string matchResult, List<PlayerStats> stats, bool excludeBases)
+        private void ComposePageElements(PageDescriptor page, Action content)
         {
-            page.Header().Element(container => ComposeHeader(container, matchName, matchResult));
-            page.Content().Element(container => ComposeStatsGrid(container, stats, false, excludeBases));
-            page.Footer().Element(ComposeFooter);
-        }
-
-        private void ComposeSummaryPage(PageDescriptor page, List<PlayerStats> summaryStats)
-        {
-            page.Header().Element(container =>
+            // Dodawanie znaku wodnego
+            page.Background().Element(container =>
             {
-                var teamNames = _allPlayerStats.Select(s => s.Drużyna).Distinct().ToList();
-                string teamAName = teamNames.FirstOrDefault(n => n != "Brak Drużyny") ?? "Drużyna A";
-                string teamBName = teamNames.FirstOrDefault(n => n != "Brak Drużyny" && n != teamAName) ?? "Drużyna B";
+                var imagePath = Path.Combine("Assets", "combologo.png");
+                if (!File.Exists(imagePath))
+                    return;
 
-                int teamAKills = summaryStats.Where(s => s.Drużyna == teamAName).Sum(s => s.Zabojstwa);
-                int teamBKills = summaryStats.Where(s => s.Drużyna == teamBName).Sum(s => s.Zabojstwa);
-
-                int teamAWins = _matchesForTeamSummary.Count(m => m.MatchResult.StartsWith(teamAName));
-                int teamBWins = _matchesForTeamSummary.Count(m => m.MatchResult.StartsWith(teamBName));
-                int draws = _matchesForTeamSummary.Count(m => m.MatchResult.StartsWith("Remis"));
-
-                container.Column(col =>
-                {
-                    col.Item().AlignCenter().Text($"{teamAName} ({teamAWins} wygranych) vs {teamBName} ({teamBWins} wygranych)").Bold().FontSize(18);
-
-                    if (draws > 0)
-                        col.Item().AlignCenter().Text($"(Remisy: {draws})").FontSize(14);
-
-                    col.Item().AlignCenter().Text($"Całkowite trafienia: {teamAKills} - {teamBKills}").FontSize(14);
-                    col.Item().PaddingVertical(10);
-                });
+                container
+                    .Rotate(-45)
+                    .AlignCenter()
+                    .AlignMiddle()
+                    .Image(imagePath);
+                    
             });
 
-            page.Content().Element(container => ComposeStatsGrid(container, summaryStats, true, true));
+            page.Header().Element(ComposePageHeader);
+            content(); // Generowanie głównej zawartości strony
             page.Footer().Element(ComposeFooter);
+        }
+
+        private void ComposePageHeader(IContainer container)
+        {
+            container.Row(row =>
+            {
+                row.RelativeItem().Text("comboarena.pl").FontSize(10);
+                row.RelativeItem().AlignRight().Text($"{DateTime.Now:dd.MM.yyyy}, Kraków").FontSize(10);
+            });
+        }
+
+        private void ComposeMatchPageContent(PageDescriptor page, string matchName, string matchResult, List<PlayerStats> stats, bool excludeBases)
+        {
+            page.Content().Column(col =>
+            {
+                ComposeHeader(col.Item(), matchName, matchResult);
+                ComposeStatsGrid(col.Item(), stats, false, excludeBases);
+            });
+        }
+
+        private void ComposeSummaryPageContent(PageDescriptor page, List<PlayerStats> summaryStats)
+        {
+            page.Content().Column(col =>
+            {
+                ComposeSummaryHeader(col.Item(), summaryStats);
+                ComposeStatsGrid(col.Item(), summaryStats, true, true);
+            });
+        }
+
+        private void ComposeSummaryHeader(IContainer container, List<PlayerStats> summaryStats)
+        {
+            var teamNames = _allPlayerStats.Select(s => s.Drużyna).Distinct().ToList();
+            string teamAName = teamNames.FirstOrDefault(n => n != "Brak Drużyny") ?? "Drużyna A";
+            string teamBName = teamNames.FirstOrDefault(n => n != "Brak Drużyny" && n != teamAName) ?? "Drużyna B";
+
+            int teamAKills = summaryStats.Where(s => s.Drużyna == teamAName).Sum(s => s.Zabojstwa);
+            int teamBKills = summaryStats.Where(s => s.Drużyna == teamBName).Sum(s => s.Zabojstwa);
+
+            int teamAWins = _matchesForTeamSummary.Count(m => m.MatchResult.StartsWith(teamAName));
+            int teamBWins = _matchesForTeamSummary.Count(m => m.MatchResult.StartsWith(teamBName));
+            int draws = _matchesForTeamSummary.Count(m => m.MatchResult.StartsWith("Remis"));
+
+            container.Column(col =>
+            {
+                col.Item().PaddingTop(15); // Dodatkowy odstęp od nowego nagłówka
+                col.Item().AlignCenter().Text($"{teamAName} ({teamAWins} wygranych) vs {teamBName} ({teamBWins} wygranych)").Bold().FontSize(18);
+
+                if (draws > 0)
+                    col.Item().AlignCenter().Text($"(Remisy: {draws})").FontSize(14);
+                col.Item().PaddingVertical(10);
+            });
         }
 
         private void ComposeHeader(IContainer container, string title, string subtitle)
         {
             container.Column(col =>
             {
+                col.Item().PaddingTop(15); // Dodatkowy odstęp od nowego nagłówka
                 col.Item().Text(title).Bold().FontSize(24);
                 col.Item().Text(subtitle).FontSize(16).SemiBold();
                 col.Item().PaddingVertical(10);

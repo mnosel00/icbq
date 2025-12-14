@@ -11,34 +11,31 @@ namespace ExTCCM.Database.Context
 {
     public class StatsDbContext : DbContext
     {
-        // Usunęliśmy stałe 'DatabaseLogicalName' i 'ServerName'
-
-        // Definiujemy tabele (bez zmian)
+       
         public DbSet<Match> Matches { get; set; }
         public DbSet<MatchEvent> MatchEvents { get; set; }
         public DbSet<MatchHostDevice> MatchHostDevices { get; set; }
         public DbSet<MatchTeam> MatchTeams { get; set; }
         public DbSet<MatchTeamRole> MatchTeamRoles { get; set; }
 
-        // ===== CAŁA TA FUNKCJA JEST NOWA =====
-        // Mówimy EF Core, jak ma się połączyć
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            // 1. Zbuduj obiekt konfiguracji
             var configBuilder = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory()) // Szukaj pliku tam, gdzie jest .exe
+                .SetBasePath(Directory.GetCurrentDirectory()) 
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
             IConfigurationRoot configuration = configBuilder.Build();
 
-            // 2. Odczytaj wartości z pliku JSON
             string serverName = configuration.GetSection("DatabaseSettings:ServerName").Value;
             string dbName = configuration.GetSection("DatabaseSettings:DatabaseLogicalName").Value;
 
-            // 3. Zbuduj connection string
+            // 3. Zbuduj connection string gad
             string connectionString = $"Server={serverName};Database={dbName};Integrated Security=True;TrustServerCertificate=True;";
 
-            optionsBuilder.UseSqlServer(connectionString);
+            optionsBuilder.UseSqlServer(connectionString, sqlServerOptionsAction: sqlOptions =>
+            {
+                sqlOptions.EnableRetryOnFailure();
+            });
         }
 
         // Funkcja OnModelCreating jest bez zmian
