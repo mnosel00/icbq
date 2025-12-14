@@ -61,23 +61,31 @@ namespace ExTCCM.Documents
 
         private void ComposePageElements(PageDescriptor page, Action content)
         {
-            // Dodawanie znaku wodnego
-            page.Background().Element(container =>
-            {
-                var imagePath = Path.Combine("Assets", "combologo.png");
-                if (!File.Exists(imagePath))
-                    return;
+            // --- ZNAK WODNY ---
+            page.Background()
+                .AlignMiddle()
+                .AlignCenter()
+                .Element(centeredContainer =>
+                {
+                    var imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "combologo.png");
+                    if (!File.Exists(imagePath)) return;
 
-                container
-                    .Rotate(-45)
-                    .AlignCenter()
-                    .AlignMiddle()
-                    .Image(imagePath);
-                    
-            });
+                    centeredContainer
+                        
+                        .Width(10, Unit.Centimetre) // Rozmiar
+                        .Layers(layers =>
+                        {
+                            
+                            layers.PrimaryLayer().Image(imagePath);
 
+                            
+                            layers.Layer().Background(Colors.White.WithAlpha(230));
+                        });
+                });
+
+            // --- RESZTA STRONY ---
             page.Header().Element(ComposePageHeader);
-            content(); // Generowanie głównej zawartości strony
+            content();
             page.Footer().Element(ComposeFooter);
         }
 
@@ -85,8 +93,20 @@ namespace ExTCCM.Documents
         {
             container.Row(row =>
             {
-                row.RelativeItem().Text("comboarena.pl").FontSize(10);
-                row.RelativeItem().AlignRight().Text($"{DateTime.Now:dd.MM.yyyy}, Kraków").FontSize(10);
+                
+                row.RelativeItem().Column(column =>
+                {
+                    
+                    column.Item().Text("comboarena.pl").FontSize(10).Bold();
+                    column.Item().Text("Zarezerwuj grę !").FontSize(10);
+                    column.Item().Text("+48 509 595 199").FontSize(10);
+                });
+
+                
+                row.RelativeItem().AlignRight().Column(column =>
+                {
+                    column.Item().Text($"{DateTime.Now:dd.MM.yyyy}, Kraków").FontSize(10);
+                });
             });
         }
 
