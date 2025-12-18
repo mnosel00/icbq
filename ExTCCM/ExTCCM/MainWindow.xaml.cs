@@ -195,11 +195,16 @@ namespace ExTCCM
 
             SetUiEnabled(false, "Generowanie PDF...");
 
+            // Ustawienie domyślnej ścieżki i upewnienie się, że folder istnieje
+            string reportsPath = @"C:\Users\extremo\Desktop\Raporty";
+            Directory.CreateDirectory(reportsPath);
+
             SaveFileDialog saveFileDialog = new SaveFileDialog
             {
                 Filter = "PDF Document (*.pdf)|*.pdf",
                 Title = "Zapisz raport PDF",
-                FileName = $"Raport_iCombat_{DateTime.Now:yyyyMMdd_HHmm}.pdf"
+                FileName = $"Raport_iCombat_{DateTime.Now:yyyyMMdd_HHmm}.pdf",
+                InitialDirectory = reportsPath
             };
 
             if (saveFileDialog.ShowDialog() == true)
