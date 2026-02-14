@@ -30,7 +30,7 @@ namespace ExTCCM.Database.Context
             string dbName = configuration.GetSection("DatabaseSettings:DatabaseLogicalName").Value;
 
             // 3. Zbuduj connection string gad
-            string connectionString = $"Server={serverName};Database={dbName};Integrated Security=True;TrustServerCertificate=True;";
+            string connectionString = $"Server={serverName};AttachDbFileName={dbName};Database=ICombatStats;Integrated Security=True;TrustServerCertificate=True;";
 
             optionsBuilder.UseSqlServer(connectionString, sqlServerOptionsAction: sqlOptions =>
             {
