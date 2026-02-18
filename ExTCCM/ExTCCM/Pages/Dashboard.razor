@@ -1,0 +1,378 @@
+@page "/"
+@using ExTCCM.Models
+@using ExTCCM.Services
+@using ExTCCM.Documents
+@using QuestPDF.Fluent
+@using System.Diagnostics
+@using Microsoft.Win32 
+@inject StatsService StatsService
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <!-- Top Configuration Bar (Card) -->
+    <MudCard Elevation="3" Class="mb-4">
+        <MudCardContent>
+            <MudGrid AlignItems="AlignItems.Center">
+                <MudItem xs="12" sm="4">
+                    <MudNumericField @bind-Value="RoundsToFetch" Label="Rounds to Fetch" Variant="Variant.Outlined" Min="1" Max="50" />
+                </MudItem>
+                <!-- UI Polish: Added d-flex align-center specific to this item for perfect button vertical alignment -->
+                <MudItem xs="12" sm="4" Class="d-flex align-center">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="LoadStats" Disabled="@_isBusy">
+                        @if (_isBusy)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                            <MudText Class="ms-2">Ładowanie...</MudText>
+                        }
+                        else
+                        {
+                            <MudText>Załaduj statystyki</MudText>
+                        }
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudText Typo="Typo.body2" Align="Align.Right">@_statusMessage</MudText>
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+
+    <MudGrid>
+        <!-- Left Column: Match Selection -->
+        <MudItem xs="12" md="4">
+            <MudCard Elevation="3" Style="height:100%">
+                <MudCardHeader>
+                    <CardHeaderAvatar>
+                        <MudAvatar Color="Color.Secondary">
+                            <MudIcon Icon="@Icons.Material.Filled.List" />
+                        </MudAvatar>
+                    </CardHeaderAvatar>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Wybierz Mecze</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <!-- Improved Table: Removed RowStyleFunc, added Chips in Template -->
+                    <MudTable T="MatchInfo" Items="_matches" MultiSelection="true" Dense="true" Hover="true"
+                              SelectedItems="_selectedMatches" 
+                              SelectedItemsChanged="OnSelectionChanged"
+                              Height="400px" FixedHeader="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Mecz</MudTh>
+                            <MudTh>Wynik</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Mecz">
+                                <MudText Typo="Typo.body2" Style="font-weight:bold">@context.MatchName</MudText>
+                                <MudText Typo="Typo.caption">@context.MatchTime.ToShortTimeString()</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Wynik">
+                                @if (context.MatchResult.Contains("Black", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <MudChip T="string" Color="Color.Dark" Size="Size.Small">@context.MatchResult</MudChip>
+                                }
+                                else if (context.MatchResult.Contains("Green", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <MudChip T="string" Color="Color.Success" Size="Size.Small">@context.MatchResult</MudChip>
+                                }
+                                else if (context.MatchResult.Contains("Remis", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <MudChip T="string" Color="Color.Default" Size="Size.Small">@context.MatchResult</MudChip>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption">@context.MatchResult</MudText>
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <!-- Pager Fix: Centered alignment and hidden rows-per-page for narrow layouts -->
+                            <MudTablePager HideRowsPerPage="true" HorizontalAlignment="HorizontalAlignment.Center" />
+                        </PagerContent>
+                    </MudTable>
+                    
+                    <MudDivider Class="my-3"/>
+                    <MudText Typo="Typo.subtitle2">Podsumowanie Wybranych:</MudText>
+                    <MudText Typo="Typo.body2">Mecze: @_selectedMatches.Count</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Right Column: Stats & Actions -->
+        <MudItem xs="12" md="8">
+            <!-- Stats Card -->
+            <MudCard Elevation="3" Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderAvatar>
+                        <MudAvatar Color="Color.Primary">
+                            <MudIcon Icon="@Icons.Material.Filled.Analytics" />
+                        </MudAvatar>
+                    </CardHeaderAvatar>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Statystyki Meczy</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                     <MudGrid>
+                         <!-- Team A Table -->
+                         <MudItem xs="12" md="6">
+                             <!-- Dynamic Header using GetTeamColor helper -->
+                             <MudText Typo="Typo.subtitle1" Class="mb-2" Color="@GetTeamColor(_teamAName)"><b>Statystyki Zespołu @_teamAName</b></MudText>
+                             <MudTable T="PlayerStats" Items="_teamAStats" Dense="true" Hover="true" FixedHeader="true" Height="300px" Elevation="0" Outlined="true">
+                                 <HeaderContent>
+                                     <MudTh>Gracz</MudTh>
+                                     <MudTh>Zabójstwa</MudTh>
+                                     <MudTh>Śmierci</MudTh>
+                                 </HeaderContent>
+                                 <RowTemplate>
+                                     <MudTd>@context.Gracz</MudTd>
+                                     <MudTd>@context.Zabojstwa</MudTd>
+                                     <MudTd>@context.Smierci</MudTd>
+                                 </RowTemplate>
+                             </MudTable>
+                             <MudText Class="mt-2" Typo="Typo.subtitle2">Całkowite Zabójstwa: @_teamAStats.Sum(x => x.Zabojstwa)</MudText>
+                         </MudItem>
+
+                         <!-- Team B Table -->
+                         <MudItem xs="12" md="6">
+                             <!-- Dynamic Header using GetTeamColor helper -->
+                             <MudText Typo="Typo.subtitle1" Class="mb-2" Color="@GetTeamColor(_teamBName)"><b>Statystyki Zespołu @_teamBName</b></MudText>
+                             <MudTable T="PlayerStats" Items="_teamBStats" Dense="true" Hover="true" FixedHeader="true" Height="300px" Elevation="0" Outlined="true">
+                                 <HeaderContent>
+                                     <MudTh>Gracz</MudTh>
+                                     <MudTh>Zabójstwa</MudTh>
+                                     <MudTh>Śmierci</MudTh>
+                                 </HeaderContent>
+                                 <RowTemplate>
+                                     <MudTd>@context.Gracz</MudTd>
+                                     <MudTd>@context.Zabojstwa</MudTd>
+                                     <MudTd>@context.Smierci</MudTd>
+                                 </RowTemplate>
+                             </MudTable>
+                              <MudText Class="mt-2" Typo="Typo.subtitle2">Całkowite Zabójstwa: @_teamBStats.Sum(x => x.Zabojstwa)</MudText>
+                         </MudItem>
+                     </MudGrid>
+                </MudCardContent>
+            </MudCard>
+
+            <!-- Action Buttons Card -->
+            <MudCard Elevation="3">
+                <MudCardContent>
+                    <MudGrid Justify="Justify.FlexEnd">
+                        <MudItem>
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.PictureAsPdf" OnClick="GeneratePdf">Generuj PDF</MudButton>
+                        </MudItem>
+                        <MudItem>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Email" OnClick="SendEmail">Wyślij Email</MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private int RoundsToFetch { get; set; } = 5;
+    private bool _isBusy = false;
+    private string _statusMessage = "Gotowy";
+    
+    // Data Sources
+    private List<MatchInfo> _matches = new();
+    private HashSet<MatchInfo> _selectedMatches = new();
+    private List<PlayerStats> _allPlayerStats = new();
+
+    // Computed Stats
+    private List<PlayerStats> _teamAStats = new();
+    private List<PlayerStats> _teamBStats = new();
+
+    // Dynamic Team Names
+    private string _teamAName = "A";
+    private string _teamBName = "B";
+
+    protected override void OnInitialized()
+    {
+        QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+        
+        // Configure global snackbar defaults
+        Snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomRight;
+        Snackbar.Configuration.PreventDuplicates = true;
+        Snackbar.Configuration.NewestOnTop = false;
+        Snackbar.Configuration.ShowCloseIcon = true;
+        Snackbar.Configuration.VisibleStateDuration = 10000;
+        Snackbar.Configuration.SnackbarVariant = Variant.Filled;
+    }
+
+    private async Task LoadStats()
+    {
+        _isBusy = true;
+        _statusMessage = "Ładowanie statystyk z bazy danych...";
+        _matches.Clear();
+        _selectedMatches.Clear();
+        _allPlayerStats.Clear();
+        _teamAStats.Clear();
+        _teamBStats.Clear();
+        
+        // Reset team names to default
+        _teamAName = "A";
+        _teamBName = "B";
+        
+        StateHasChanged(); 
+
+        try
+        {
+            int count = Math.Max(1, RoundsToFetch);
+            var rawKills = await StatsService.LoadStatsAsync(count);
+
+            _statusMessage = "Przetwarzanie surowych danych...";
+            var result = StatsService.ProcessRawData(rawKills); 
+
+            _matches = result.Matches;
+            _allPlayerStats = result.PlayerStats;
+            
+            if (_matches.Any())
+            {
+                _selectedMatches.Add(_matches.First());
+            }
+
+            RecalculateSummaries();
+            _statusMessage = $"Załadowano {_matches.Count} meczów.";
+            Snackbar.Add($"Pomyślnie załadowano {_matches.Count} meczów", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            _statusMessage = "Błąd podczas ładowania danych.";
+            Snackbar.Add($"Błąd: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private void OnSelectionChanged(HashSet<MatchInfo> selectedItems)
+    {
+        _selectedMatches = selectedItems;
+        RecalculateSummaries();
+    }
+
+    private void RecalculateSummaries()
+    {
+        _teamAStats.Clear();
+        _teamBStats.Clear();
+
+        // Reset names if nothing selected
+        if (!_selectedMatches.Any()) 
+        {
+            _teamAName = "A";
+            _teamBName = "B";
+            StateHasChanged(); // Ensure empty state is rendered
+            return;
+        }
+
+        var selectedMatchIds = _selectedMatches.Select(m => m.MatchId).ToHashSet();
+        var relevantStats = _allPlayerStats.Where(s => selectedMatchIds.Contains(s.MatchId)).ToList();
+
+        var grouped = relevantStats
+            .GroupBy(s => new { s.Gracz, s.Drużyna })
+            .Select(g => new PlayerStats
+            {
+                Gracz = g.Key.Gracz,
+                Drużyna = g.Key.Drużyna,
+                Zabojstwa = g.Sum(x => x.Zabojstwa),
+                Smierci = g.Sum(x => x.Smierci)
+            })
+            .ToList();
+
+        var teamNames = grouped.Select(p => p.Drużyna).Distinct().Take(2).ToList();
+        
+        // Dynamically assign headers and filter data based on discovered Team Names
+        if (teamNames.Count > 0)
+        {
+            _teamAName = teamNames[0];
+            _teamAStats = grouped.Where(p => p.Drużyna == teamNames[0]).OrderByDescending(p => p.Zabojstwa).ToList();
+        }
+        
+        if (teamNames.Count > 1)
+        {
+            _teamBName = teamNames[1];
+            _teamBStats = grouped.Where(p => p.Drużyna == teamNames[1]).OrderByDescending(p => p.Zabojstwa).ToList();
+        }
+
+        // Critical: Update the UI with new team names
+        StateHasChanged();
+    }
+
+    // Helper to determine color based on team name
+    private Color GetTeamColor(string teamName)
+    {
+        if (string.IsNullOrEmpty(teamName)) return Color.Primary;
+
+        if (teamName.Contains("Green", StringComparison.OrdinalIgnoreCase))
+            return Color.Success;
+            
+        if (teamName.Contains("Black", StringComparison.OrdinalIgnoreCase))
+            return Color.Dark;
+            
+        return Color.Primary; // Default blue for unknown teams
+    }
+
+    private void GeneratePdf()
+    {
+        if (!_selectedMatches.Any())
+        {
+            Snackbar.Add("Wybierz przynajmniej jeden mecz, aby wygenerować raport.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var saveFileDialog = new SaveFileDialog
+            {
+                Filter = "PDF file (*.pdf)|*.pdf",
+                FileName = $"Raport_{DateTime.Now:yyyyMMdd_HHmm}.pdf"
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                var summaryStats = new List<PlayerStats>();
+                summaryStats.AddRange(_teamAStats);
+                summaryStats.AddRange(_teamBStats);
+
+                var document = new PdfReportDocument(_selectedMatches.ToList(), _allPlayerStats, summaryStats);
+                document.GeneratePdf(saveFileDialog.FileName);
+
+                Snackbar.Add($"PDF Zapisany w: {saveFileDialog.FileName}", Severity.Success);
+                _lastGeneratedPdfPath = saveFileDialog.FileName;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Nie udało się wygenerować PDF: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string _lastGeneratedPdfPath = string.Empty;
+
+    private void SendEmail()
+    {
+        try
+        {
+            string mailto = "mailto:?subject=Raport&body=W zalaczeniu raport.";
+            Process.Start(new ProcessStartInfo(mailto) { UseShellExecute = true });
+            
+            if (!string.IsNullOrEmpty(_lastGeneratedPdfPath))
+            {
+                 Snackbar.Add("Klient poczty otwarty. Proszę ręcznie dołączyć PDF z lokalizacji: " + _lastGeneratedPdfPath, Severity.Info);
+            }
+            else
+            {
+                 Snackbar.Add("Klient poczty otwarty.", Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Nie można otworzyć klienta poczty: {ex.Message}", Severity.Error);
+        }
+    }
+}
