@@ -8,7 +8,7 @@
 @inject StatsService StatsService
 @inject ISnackbar Snackbar
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <!-- Top Configuration Bar (Card) -->
     <MudCard Elevation="3" Class="mb-4">
         <MudCardContent>
@@ -118,16 +118,50 @@
                          <MudItem xs="12" md="6">
                              <!-- Dynamic Header using GetTeamColor helper -->
                              <MudText Typo="Typo.subtitle1" Class="mb-2" Color="@GetTeamColor(_teamAName)"><b>Statystyki Zespołu @_teamAName</b></MudText>
-                             <MudTable T="PlayerStats" Items="_teamAStats" Dense="true" Hover="true" FixedHeader="true" Height="300px" Elevation="0" Outlined="true">
+                             <MudTable T="PlayerStats" Items="_teamAStats" Dense="true" Hover="true" FixedHeader="true" Height="300px" Elevation="0" Outlined="true" Style="table-layout: fixed;">
+                                 <ColGroup>
+                                     <col style="width: 25%;" />
+                                     <col style="width: 25%;" />
+                                     <col style="width: 25%;" />
+                                     <col style="width: 25%;" />
+                                 </ColGroup>
                                  <HeaderContent>
-                                     <MudTh>Gracz</MudTh>
-                                     <MudTh>Zabójstwa</MudTh>
-                                     <MudTh>Śmierci</MudTh>
+                                     <MudTh Style="text-align: center;">
+                                         <MudTooltip Text="Gracz">
+                                             <span style="font-size: 1.2rem;">👤</span>
+                                         </MudTooltip>
+                                     </MudTh>
+                                     <MudTh Style="text-align: center;">
+                                         <MudTooltip Text="Zabójstwa">
+                                             <span style="font-size: 1.2rem;">🎯</span>
+                                         </MudTooltip>
+                                     </MudTh>
+                                     <MudTh Style="text-align: center;">
+                                         <MudTooltip Text="Śmierci">
+                                             <span style="font-size: 1.2rem;">💀</span>
+                                         </MudTooltip>
+                                     </MudTh>
+                                     <MudTh Style="text-align: center;">
+                                         <MudTooltip Text="Skuteczność">
+                                             <span style="font-size: 1.2rem;">📊</span>
+                                         </MudTooltip>
+                                     </MudTh>
                                  </HeaderContent>
                                  <RowTemplate>
-                                     <MudTd>@context.Gracz</MudTd>
-                                     <MudTd>@context.Zabojstwa</MudTd>
-                                     <MudTd>@context.Smierci</MudTd>
+                                     <MudTd Style="text-align: center;">@context.Gracz</MudTd>
+                                     <MudTd Style="text-align: center;">@context.Zabojstwa</MudTd>
+                                     <MudTd Style="text-align: center;">@context.Smierci</MudTd>
+                                     <MudTd Style="text-align: center;">
+                                         <MudStack Spacing="0">
+                                             <MudText Typo="Typo.caption" Color="@GetEfficiencyColor(context.Zabojstwa, context.Smierci)" Align="Align.Center">
+                                                 @GetEfficiency(context.Zabojstwa, context.Smierci).ToString("0.0")%
+                                             </MudText>
+                                             <MudProgressLinear Value="@GetEfficiency(context.Zabojstwa, context.Smierci)" 
+                                                                Color="@GetEfficiencyColor(context.Zabojstwa, context.Smierci)" 
+                                                                Size="Size.Small" 
+                                                                Rounded="true" />
+                                         </MudStack>
+                                     </MudTd>
                                  </RowTemplate>
                              </MudTable>
                              <MudText Class="mt-2" Typo="Typo.subtitle2">Całkowite Zabójstwa: @_teamAStats.Sum(x => x.Zabojstwa)</MudText>
@@ -137,16 +171,50 @@
                          <MudItem xs="12" md="6">
                              <!-- Dynamic Header using GetTeamColor helper -->
                              <MudText Typo="Typo.subtitle1" Class="mb-2" Color="@GetTeamColor(_teamBName)"><b>Statystyki Zespołu @_teamBName</b></MudText>
-                             <MudTable T="PlayerStats" Items="_teamBStats" Dense="true" Hover="true" FixedHeader="true" Height="300px" Elevation="0" Outlined="true">
+                             <MudTable T="PlayerStats" Items="_teamBStats" Dense="true" Hover="true" FixedHeader="true" Height="300px" Elevation="0" Outlined="true" Style="table-layout: fixed;">
+                                 <ColGroup>
+                                     <col style="width: 25%;" />
+                                     <col style="width: 25%;" />
+                                     <col style="width: 25%;" />
+                                     <col style="width: 25%;" />
+                                 </ColGroup>
                                  <HeaderContent>
-                                     <MudTh>Gracz</MudTh>
-                                     <MudTh>Zabójstwa</MudTh>
-                                     <MudTh>Śmierci</MudTh>
+                                     <MudTh Style="text-align: center;">
+                                         <MudTooltip Text="Gracz">
+                                             <span style="font-size: 1.2rem;">👤</span>
+                                         </MudTooltip>
+                                     </MudTh>
+                                     <MudTh Style="text-align: center;">
+                                         <MudTooltip Text="Zabójstwa">
+                                             <span style="font-size: 1.2rem;">🎯</span>
+                                         </MudTooltip>
+                                     </MudTh>
+                                     <MudTh Style="text-align: center;">
+                                         <MudTooltip Text="Śmierci">
+                                             <span style="font-size: 1.2rem;">💀</span>
+                                         </MudTooltip>
+                                     </MudTh>
+                                     <MudTh Style="text-align: center;">
+                                         <MudTooltip Text="Skuteczność">
+                                             <span style="font-size: 1.2rem;">📊</span>
+                                         </MudTooltip>
+                                     </MudTh>
                                  </HeaderContent>
                                  <RowTemplate>
-                                     <MudTd>@context.Gracz</MudTd>
-                                     <MudTd>@context.Zabojstwa</MudTd>
-                                     <MudTd>@context.Smierci</MudTd>
+                                     <MudTd Style="text-align: center;">@context.Gracz</MudTd>
+                                     <MudTd Style="text-align: center;">@context.Zabojstwa</MudTd>
+                                     <MudTd Style="text-align: center;">@context.Smierci</MudTd>
+                                     <MudTd Style="text-align: center;">
+                                         <MudStack Spacing="0">
+                                             <MudText Typo="Typo.caption" Color="@GetEfficiencyColor(context.Zabojstwa, context.Smierci)" Align="Align.Center">
+                                                 @GetEfficiency(context.Zabojstwa, context.Smierci).ToString("0.0")%
+                                             </MudText>
+                                             <MudProgressLinear Value="@GetEfficiency(context.Zabojstwa, context.Smierci)" 
+                                                                Color="@GetEfficiencyColor(context.Zabojstwa, context.Smierci)" 
+                                                                Size="Size.Small" 
+                                                                Rounded="true" />
+                                         </MudStack>
+                                     </MudTd>
                                  </RowTemplate>
                              </MudTable>
                               <MudText Class="mt-2" Typo="Typo.subtitle2">Całkowite Zabójstwa: @_teamBStats.Sum(x => x.Zabojstwa)</MudText>
@@ -315,6 +383,37 @@
             return Color.Dark;
             
         return Color.Primary; // Default blue for unknown teams
+    }
+
+    /// <summary>
+    /// Calculates player efficiency as percentage of kills relative to total engagements.
+    /// Formula: (Kills / (Kills + Deaths)) * 100
+    /// </summary>
+    /// <param name="kills">Number of kills</param>
+    /// <param name="deaths">Number of deaths</param>
+    /// <returns>Efficiency percentage (0-100), or 0 if no engagements</returns>
+    private double GetEfficiency(int kills, int deaths)
+    {
+        int totalEngagements = kills + deaths;
+        if (totalEngagements == 0)
+            return 0;
+        
+        return (double)kills / totalEngagements * 100;
+    }
+
+    /// <summary>
+    /// Returns a color based on efficiency thresholds for visual feedback.
+    /// </summary>
+    private Color GetEfficiencyColor(int kills, int deaths)
+    {
+        double efficiency = GetEfficiency(kills, deaths);
+        
+        return efficiency switch
+        {
+            >= 60 => Color.Success,   // High efficiency: green
+            >= 40 => Color.Warning,   // Medium efficiency: yellow/orange
+            _ => Color.Error          // Low efficiency: red
+        };
     }
 
     private void GeneratePdf()
