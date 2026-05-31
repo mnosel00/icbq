@@ -7,6 +7,7 @@
 @using Microsoft.Win32
 @inject StatsService StatsService
 @inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
 
 <style>
     /* Custom gaming adjustments to enforce zero scrolling on tables and high density */
@@ -15,7 +16,7 @@
     }
 
     .gaming-table tr th, .gaming-table tr td {
-        padding: 4px 8px !important; /* Ultra-dense padding for maximum data density */
+        padding: 6px 8px !important; /* Ultra-dense padding for maximum data density */
         border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
     }
 
@@ -23,14 +24,16 @@
         border-top: 4px solid var(--team-border-color, #777) !important;
         background-color: #1a1a24 !important;
     }
+
+    .header-icon {
+        font-size: 1.1rem !important;
+    }
 </style>
 
 <MudGrid Spacing="3" Class="pa-2" Style="height: calc(100vh - 80px); overflow: hidden;">
 
-    <!-- LEFT PANEL: Configuration, Matches & Actions (25% width) -->
     <MudItem xs="12" md="3" Class="d-flex flex-column" Style="height: 100%; gap: 12px;">
 
-        <!-- Quick Config & Loader Card -->
         <MudCard Elevation="4" Style="background-color: #1a1a24;">
             <MudCardContent Class="pa-3">
                 <MudText Typo="Typo.overline" Color="Color.Inherit" Class="opacity-60 d-block mb-1">Panel Sterowania</MudText>
@@ -51,7 +54,6 @@
             </MudCardContent>
         </MudCard>
 
-        <!-- Match Selector Card (Takes maximum remaining space) -->
         <MudCard Elevation="4" Class="flex-grow-1 d-flex flex-column" Style="background-color: #1a1a24; overflow: hidden;">
             <MudCardHeader Class="pa-3 border-b-1 border-solid border-dark">
                 <CardHeaderContent>
@@ -74,15 +76,21 @@
                         <MudTd DataLabel="Wynik" Class="py-1 text-right">
                             @if (context.MatchResult.Contains("Black", StringComparison.OrdinalIgnoreCase))
                             {
-                                <MudChip T="string" Color="Color.Dark" Size="Size.Small" Variant="Variant.Filled" Style="border: 1px solid #444; font-size: 0.75rem;">Black Win</MudChip>
+                                <MudChip T="string" Color="Color.Dark" Size="Size.Small" Variant="Variant.Filled" Style="border: 1px solid #444; font-size: 0.75rem; font-weight: bold;">
+                                    @context.MatchResult.Replace("Wygrała", "")
+                                </MudChip>
                             }
                             else if (context.MatchResult.Contains("Green", StringComparison.OrdinalIgnoreCase))
                             {
-                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Style="font-size: 0.75rem;">Green Win</MudChip>
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Style="font-size: 0.75rem; font-weight: bold;">
+                                    @context.MatchResult.Replace("Wygrała", "")
+                                </MudChip>
                             }
                             else
                             {
-                                <MudChip T="string" Color="Color.Default" Size="Size.Small" Style="font-size: 0.75rem;">Remis</MudChip>
+                                <MudChip T="string" Color="Color.Default" Size="Size.Small" Style="font-size: 0.75rem; font-weight: bold;">
+                                    @context.MatchResult
+                                </MudChip>
                             }
                         </MudTd>
                     </RowTemplate>
@@ -90,7 +98,6 @@
             </MudCardContent>
         </MudCard>
 
-        <!-- Export Actions Card -->
         <MudCard Elevation="4" Style="background-color: #1a1a24;">
             <MudCardContent Class="pa-3 d-flex gap-2">
                 <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.PictureAsPdf" OnClick="GeneratePdf" FullWidth="true" Size="Size.Small">PDF</MudButton>
@@ -99,12 +106,10 @@
         </MudCard>
     </MudItem>
 
-    <!-- RIGHT PANEL: Dashboard Stats (75% width) - Core View -->
     <MudItem xs="12" md="9" Class="d-flex flex-column" Style="height: 100%;">
         <MudCard Elevation="4" Class="flex-grow-1 d-flex flex-column pa-2" Style="background-color: #12121a;">
             <MudGrid Class="flex-grow-1" Style="height: 100%;">
 
-                <!-- TEAM A COLUMN -->
                 <MudItem xs="12" sm="6" Class="d-flex flex-column" Style="height: 100%;">
                     <MudCard Elevation="2" Class="team-card flex-grow-1 d-flex flex-column" Style="--team-border-color: #2b2b2b;">
                         <div class="pa-3 d-flex justify-space-between align-center" style="background: rgba(0,0,0,0.2);">
@@ -121,9 +126,17 @@
                                       Style="@($"font-size: {( _teamAStats.Count > 8 ? "0.8rem" : "0.9rem" )};")">
                                 <HeaderContent>
                                     <MudTh>GRACZ</MudTh>
-                                    <MudTh Style="text-align: center;">KILLS</MudTh>
-                                    <MudTh Style="text-align: center;">DEATHS</MudTh>
-                                    <MudTh Style="text-align: right;">K/D RATIO</MudTh>
+                                    <MudTh Style="text-align: center;">
+                                        <MudTooltip Text="Zabójstwa (Kills)">
+                                            <MudIcon Icon="@Icons.Material.Filled.GpsFixed" Color="Color.Success" Class="header-icon" />
+                                        </MudTooltip>
+                                    </MudTh>
+                                    <MudTh Style="text-align: center;">
+                                        <MudTooltip Text="Śmierci (Deaths)">
+                                            <MudIcon Icon="@Icons.Material.Filled.HeartBroken" Color="Color.Error" Class="header-icon" />
+                                        </MudTooltip>
+                                    </MudTh>
+                                    <MudTh Style="text-align: right;">K/D</MudTh>
                                 </HeaderContent>
                                 <RowTemplate>
                                     <MudTd Class="font-weight-bold" Style="color: #eceff1;">@context.Gracz</MudTd>
@@ -143,7 +156,6 @@
                     </MudCard>
                 </MudItem>
 
-                <!-- TEAM B COLUMN -->
                 <MudItem xs="12" sm="6" Class="d-flex flex-column" Style="height: 100%;">
                     <MudCard Elevation="2" Class="team-card flex-grow-1 d-flex flex-column" Style="--team-border-color: #2e7d32;">
                         <div class="pa-3 d-flex justify-space-between align-center" style="background: rgba(0,0,0,0.2);">
@@ -160,9 +172,17 @@
                                       Style="@($"font-size: {( _teamBStats.Count > 8 ? "0.8rem" : "0.9rem" )};")">
                                 <HeaderContent>
                                     <MudTh>GRACZ</MudTh>
-                                    <MudTh Style="text-align: center;">KILLS</MudTh>
-                                    <MudTh Style="text-align: center;">DEATHS</MudTh>
-                                    <MudTh Style="text-align: right;">K/D RATIO</MudTh>
+                                    <MudTh Style="text-align: center;">
+                                        <MudTooltip Text="Zabójstwa (Kills)">
+                                            <MudIcon Icon="@Icons.Material.Filled.GpsFixed" Color="Color.Success" Class="header-icon" />
+                                        </MudTooltip>
+                                    </MudTh>
+                                    <MudTh Style="text-align: center;">
+                                        <MudTooltip Text="Śmierci (Deaths)">
+                                            <MudIcon Icon="@Icons.Material.Filled.HeartBroken" Color="Color.Error" Class="header-icon" />
+                                        </MudTooltip>
+                                    </MudTh>
+                                    <MudTh Style="text-align: right;">K/D</MudTh>
                                 </HeaderContent>
                                 <RowTemplate>
                                     <MudTd Class="font-weight-bold" Style="color: #eceff1;">@context.Gracz</MudTd>
@@ -302,66 +322,28 @@
         StateHasChanged();
     }
 
-    // Dynamic, professional color thresholds for K/D Ratio
     private Color GetKDRatioColor(double kd)
     {
         return kd switch
         {
-            >= 1.50 => Color.Success, // Carry status (Green)
-            >= 1.00 => Color.Info,    // Solid performance (Blue/Cyan)
-            >= 0.75 => Color.Warning, // Needs improvement (Orange)
-            _ => Color.Error          // Hard match (Red)
+            >= 1.50 => Color.Success,
+            >= 1.00 => Color.Info,
+            >= 0.75 => Color.Warning,
+            _ => Color.Error
         };
     }
 
     private void GeneratePdf()
     {
-        if (!_selectedMatches.Any())
-        {
-            Snackbar.Add("Wybierz mecz do eksportu.", Severity.Warning);
-            return;
-        }
-
-        try
-        {
-            var saveFileDialog = new SaveFileDialog
-            {
-                Filter = "PDF file (*.pdf)|*.pdf",
-                FileName = $"Raport_{DateTime.Now:yyyyMMdd_HHmm}.pdf"
-            };
-
-            if (saveFileDialog.ShowDialog() == true)
-            {
-                var summaryStats = new List<PlayerStats>();
-                summaryStats.AddRange(_teamAStats);
-                summaryStats.AddRange(_teamBStats);
-
-                var document = new PdfReportDocument(_selectedMatches.ToList(), _allPlayerStats, summaryStats);
-                document.GeneratePdf(saveFileDialog.FileName);
-
-                Snackbar.Add($"Zapisano PDF", Severity.Success);
-                _lastGeneratedPdfPath = saveFileDialog.FileName;
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Błąd PDF: {ex.Message}", Severity.Error);
-        }
+        // Logika generowania zostanie dopisana tutaj później przy wyborze opcji eksportu.
     }
-
-    private string _lastGeneratedPdfPath = string.Empty;
 
     private void SendEmail()
     {
         try
         {
-            string mailto = "mailto:?subject=Statystyki Laser Tag&body=W zalaczeniu przesylam wygenerowany raport statystyk.";
+            string mailto = "mailto:?subject=Statystyki Laser Tag&body=W zalaczeniu przesylam wygenerowany raport.";
             Process.Start(new ProcessStartInfo(mailto) { UseShellExecute = true });
-
-            if (!string.IsNullOrEmpty(_lastGeneratedPdfPath))
-            {
-                Snackbar.Add("Załącz plik z: " + _lastGeneratedPdfPath, Severity.Info);
-            }
         }
         catch (Exception ex)
         {
